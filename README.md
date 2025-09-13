@@ -1,7 +1,7 @@
 # 8fs – S3-Compatible Storage Server
 
-**8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture, comprehensive monitoring, and production-ready deployment options.  
-It provides a **drop-in S3 alternative** for developers, students, and startups who want a free and self-hosted storage solution.
+**8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture and production-ready deployment options.  
+Perfect for developers who want a simple, self-hosted storage solution.
 
 ---
 
@@ -91,27 +91,20 @@ docker-compose --profile monitoring up -d
 
 ---
 
-## ✅ Current Features
+## ✅ Features
 
 ### S3 API Compatibility
-- ✅ Bucket operations (GET, PUT, DELETE)
-- ✅ Object operations (GET, PUT, HEAD, DELETE)
-- ✅ Object listing with pagination
+- ✅ Bucket operations (create, delete, list)
+- ✅ Object operations (upload, download, delete)
+- ✅ Object metadata and listing
 - ✅ AWS Signature v4 authentication
-- ✅ Standard S3 HTTP status codes and headers
 
-### Observability
-- 📊 **Prometheus Metrics**: HTTP requests, storage usage, authentication events
-- 📝 **Structured Logging**: Request/response logging with correlation IDs
-- 🔍 **Audit Trail**: Complete event tracking for compliance
-- ❤️ **Health Checks**: `/healthz` endpoint for monitoring
-
-### Production Features
-- 🔒 **Security**: AWS-compatible authentication and authorization
-- 🚀 **Performance**: Optimized binary builds with stripped symbols
-- 🐳 **Deployment**: Docker support with multi-stage builds
-- 📦 **Portability**: Cross-platform builds (Linux, macOS, Windows)
-- 🔄 **Graceful Shutdown**: Proper signal handling and cleanup
+### Production Ready
+- 📊 **Metrics**: Prometheus integration
+- 📝 **Logging**: Structured logs with audit trails
+- ❤️ **Health Checks**: `/healthz` endpoint
+- � **Docker**: Ready-to-deploy containers
+- 🚀 **Performance**: Optimized builds
 
 ### API Endpoints
 - `GET /healthz` - Health check
@@ -119,7 +112,7 @@ docker-compose --profile monitoring up -d
 - `GET /` - List buckets
 - `PUT /:bucket` - Create bucket
 - `DELETE /:bucket` - Delete bucket
-- `GET /:bucket` - List objects in bucket
+- `GET /:bucket` - List objects
 - `PUT /:bucket/:key` - Store object
 - `GET /:bucket/:key` - Retrieve object
 - `HEAD /:bucket/:key` - Get object metadata
@@ -129,7 +122,7 @@ docker-compose --profile monitoring up -d
 
 ## 🏗️ Architecture
 
-This project follows clean architecture principles with clear separation of concerns:
+Clean architecture with clear separation of concerns:
 
 ```
 8fs/
@@ -143,7 +136,6 @@ This project follows clean architecture principles with clear separation of conc
 ├── pkg/
 │   ├── errors/                 # Error utilities
 │   └── logger/                 # Structured logging
-├── legacy/                     # Archived legacy code
 ├── build.sh                    # Build automation script
 ├── Makefile                    # Make-based build targets
 ├── Dockerfile                  # Container configuration
@@ -163,26 +155,15 @@ Environment variables:
 
 ### Running Tests
 ```bash
-# Run all tests
-make test
-# or
-go test ./...
-
-# Run integration tests specifically  
-go test -v -run TestIntegration
-
-# Generate coverage report
-make coverage
+make test              # Run all tests
+go test ./...          # Or direct go test
+make coverage          # Generate coverage report
 ```
 
 ### Development Mode
 ```bash
-# Auto-reload on changes (requires air)
-make dev
-
-# Or manually with default config
-DEFAULT_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE \
-DEFAULT_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+make dev              # Run with auto-reload
+# Or manually:
 go run ./cmd/server
 ```
 
@@ -193,31 +174,21 @@ When running with `docker-compose --profile monitoring up -d`:
 - **Grafana**: http://localhost:3000 (dashboards)
   - Default login: admin/admin
 
-## Migration from Legacy
-
-The legacy monolithic code has been archived in the `legacy/` directory. The new architecture provides:
-- Better testability and maintainability
-- Improved error handling and logging
-- Enhanced monitoring and observability
-- Production-ready deployment options
-
 ## Performance
 
-Benchmarks on MacBook Pro M1:
-- Cold start: ~50ms
-- Binary size: ~10MB (optimized)
-- Memory usage: ~15MB baseline
-- Request latency: <1ms (95th percentile)
+- **Binary Size**: ~10MB (optimized)
+- **Memory Usage**: ~15MB baseline  
+- **Cold Start**: ~50ms
+- **Request Latency**: <1ms (95th percentile)
 
 ---
 
 ## 🚀 Future Roadmap
 
 - **Multi-tenant support**: Tenant isolation and management
-- **Web UI**: Dashboard for storage management
+- **Web UI**: Dashboard for storage management  
+- **Enhanced backends**: Additional storage drivers
 - **Advanced features**: Versioning, lifecycle policies
-- **Additional backends**: Garage, local filesystem optimizations
-- **Enhanced security**: OAuth/OIDC integration
 
 ## Client Usage Examples
 
