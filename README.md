@@ -219,6 +219,68 @@ Benchmarks on MacBook Pro M1:
 - **Additional backends**: Garage, local filesystem optimizations
 - **Enhanced security**: OAuth/OIDC integration
 
+## Client Usage Examples
+
+Your 8fs server is compatible with all standard S3 clients! Check out these example files:
+
+- **`CLIENT_EXAMPLES.md`** - Comprehensive examples for Python, Node.js, cURL, AWS CLI, and more
+- **`test_python_client.py`** - Ready-to-run Python boto3 example
+- **`test_nodejs_client.js`** - Node.js AWS SDK v3 example  
+- **`test_clients.sh`** - Automated test runner for all clients
+
+### Quick Python Example
+
+```python
+import boto3
+from botocore.config import Config
+
+# Configure for 8fs
+s3 = boto3.client(
+    's3',
+    endpoint_url='http://localhost:8080',
+    aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
+    aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    config=Config(s3={'addressing_style': 'path'})
+)
+
+# Use like regular S3!
+s3.create_bucket(Bucket='my-bucket')
+s3.put_object(Bucket='my-bucket', Key='hello.txt', Body=b'Hello World!')
+response = s3.get_object(Bucket='my-bucket', Key='hello.txt')
+print(response['Body'].read().decode())
+```
+
+### Quick Node.js Example
+
+```javascript
+import { S3Client, CreateBucketCommand } from "@aws-sdk/client-s3";
+
+const s3 = new S3Client({
+    endpoint: "http://localhost:8080",
+    forcePathStyle: true,
+    credentials: {
+        accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+        secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }
+});
+
+await s3.send(new CreateBucketCommand({ Bucket: "my-bucket" }));
+```
+
+### Test All Clients
+
+```bash
+# Install dependencies (optional)
+pip install boto3                    # Python
+npm install @aws-sdk/client-s3       # Node.js
+
+# Start server
+./bin/8fs &
+
+# Run comprehensive tests
+./test_clients.sh
+```
+
 ## Contributing
 
 1. Fork the repository
