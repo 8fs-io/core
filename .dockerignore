@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development files
+*.log
+*.tmp
+.DS_Store
+.vscode/
+.idea/
+
+# Test files and coverage
+*_test.go
+coverage.out
+test-results/
+
+# Data directory (will be mounted as volume)
+data/
+logs/
+
+# Build artifacts
+8fs
+*.exe
+
+# Documentation
+docs/
+*.md

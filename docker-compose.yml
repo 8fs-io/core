@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  8fs:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount data directory for persistent storage
+      - ./data:/app/data
+      # Optional: Mount logs directory
+      - ./logs:/app/logs
+    environment:
+      - GIN_MODE=release
+      # Optional: Set log level
+      - LOG_LEVEL=info
+      # Authentication configuration (new architecture)
+      - DEFAULT_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+      - DEFAULT_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      # Server configuration
+      - SERVER_PORT=8080
+      - SERVER_HOST=0.0.0.0
+      # Storage configuration
+      - STORAGE_DRIVER=filesystem
+      - STORAGE_BASE_PATH=/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    networks:
+      - s3-network
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - s3-network
+    profiles: ["monitoring"]
+
+networks:
+  s3-network:
+    driver: bridge
