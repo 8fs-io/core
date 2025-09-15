@@ -8,7 +8,7 @@ import (
 
 func TestCosineSimilarity(t *testing.T) {
 	vm := NewVectorMath()
-	
+
 	tests := []struct {
 		name     string
 		a        []float64
@@ -59,23 +59,23 @@ func TestCosineSimilarity(t *testing.T) {
 			wantErr:  true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := vm.CosineSimilarity(tt.a, tt.b)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
-			
+
 			if math.Abs(result-tt.expected) > 1e-10 {
 				t.Errorf("expected %f, got %f", tt.expected, result)
 			}
@@ -85,7 +85,7 @@ func TestCosineSimilarity(t *testing.T) {
 
 func TestDotProduct(t *testing.T) {
 	vm := NewVectorMath()
-	
+
 	tests := []struct {
 		name     string
 		a        []float64
@@ -105,7 +105,7 @@ func TestDotProduct(t *testing.T) {
 			expected: 0.0,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := vm.DotProduct(tt.a, tt.b)
@@ -118,7 +118,7 @@ func TestDotProduct(t *testing.T) {
 
 func TestL2Norm(t *testing.T) {
 	vm := NewVectorMath()
-	
+
 	tests := []struct {
 		name     string
 		v        []float64
@@ -140,7 +140,7 @@ func TestL2Norm(t *testing.T) {
 			expected: 0.0,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := vm.L2Norm(tt.v)
@@ -153,39 +153,15 @@ func TestL2Norm(t *testing.T) {
 
 func TestValidateDimensions(t *testing.T) {
 	vm := NewVectorMath()
-	
 	tests := []struct {
 		name      string
 		embedding []float64
 		wantErr   bool
 	}{
-		{
-			name:      "valid 384 dimensions",
-			embedding: make([]float64, 384),
-			wantErr:   false,
-		},
-		{
-			name:      "valid 768 dimensions",
-			embedding: make([]float64, 768),
-			wantErr:   false,
-		},
-		{
-			name:      "valid 1536 dimensions",
-			embedding: make([]float64, 1536),
-			wantErr:   false,
-		},
-		{
-			name:      "too small - 383 dimensions",
-			embedding: make([]float64, 383),
-			wantErr:   true,
-		},
-		{
-			name:      "too large - 1537 dimensions",
-			embedding: make([]float64, 1537),
-			wantErr:   true,
-		},
+		{name: "valid exact dimension", embedding: make([]float64, EmbeddingDim), wantErr: false},
+		{name: "too small", embedding: make([]float64, EmbeddingDim-1), wantErr: true},
+		{name: "too large", embedding: make([]float64, EmbeddingDim+1), wantErr: true},
 	}
-	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := vm.ValidateDimensions(tt.embedding)
@@ -201,7 +177,7 @@ func TestValidateDimensions(t *testing.T) {
 
 func TestValidateVector(t *testing.T) {
 	vm := NewVectorMath()
-	
+
 	tests := []struct {
 		name    string
 		vector  *Vector
@@ -211,7 +187,7 @@ func TestValidateVector(t *testing.T) {
 			name: "valid vector",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: make([]float64, 384),
+				Embedding: make([]float64, EmbeddingDim),
 				Metadata:  map[string]interface{}{"type": "test"},
 			},
 			wantErr: false,
@@ -220,7 +196,7 @@ func TestValidateVector(t *testing.T) {
 			name: "empty ID",
 			vector: &Vector{
 				ID:        "",
-				Embedding: make([]float64, 384),
+				Embedding: make([]float64, EmbeddingDim),
 			},
 			wantErr: true,
 		},
@@ -236,7 +212,7 @@ func TestValidateVector(t *testing.T) {
 			name: "invalid dimensions",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: make([]float64, 100),
+				Embedding: make([]float64, EmbeddingDim-10),
 			},
 			wantErr: true,
 		},
@@ -244,7 +220,7 @@ func TestValidateVector(t *testing.T) {
 			name: "NaN value",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: []float64{1.0, math.NaN(), 3.0},
+				Embedding: func() []float64 { v := make([]float64, EmbeddingDim); v[1] = math.NaN(); return v }(),
 			},
 			wantErr: true,
 		},
@@ -252,12 +228,12 @@ func TestValidateVector(t *testing.T) {
 			name: "infinite value",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: []float64{1.0, math.Inf(1), 3.0},
+				Embedding: func() []float64 { v := make([]float64, EmbeddingDim); v[2] = math.Inf(1); return v }(),
 			},
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := vm.ValidateVector(tt.vector)
@@ -274,20 +250,20 @@ func TestValidateVector(t *testing.T) {
 // Benchmark tests for performance validation
 func BenchmarkCosineSimilarity(b *testing.B) {
 	vm := NewVectorMath()
-	
+
 	// Test with common embedding dimensions
 	dimensions := []int{384, 768, 1536}
-	
+
 	for _, dim := range dimensions {
 		vec1 := make([]float64, dim)
 		vec2 := make([]float64, dim)
-		
+
 		// Fill with random-ish values
 		for i := 0; i < dim; i++ {
 			vec1[i] = float64(i) * 0.001
 			vec2[i] = float64(i) * 0.002
 		}
-		
+
 		b.Run(fmt.Sprintf("dim-%d", dim), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				vm.CosineSimilarity(vec1, vec2)
@@ -298,12 +274,12 @@ func BenchmarkCosineSimilarity(b *testing.B) {
 
 func BenchmarkL2Norm(b *testing.B) {
 	vm := NewVectorMath()
-	
+
 	vec := make([]float64, 768)
 	for i := 0; i < 768; i++ {
 		vec[i] = float64(i) * 0.001
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vm.L2Norm(vec)

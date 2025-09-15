@@ -38,16 +38,15 @@ func SetupRoutes(r *gin.Engine, c *container.Container) {
 		// Vector endpoints (experimental)
 		vectorGroup := v1.Group("/vectors")
 		{
-			// Initialize vector storage (this would be dependency injected in production)
-			vectorStorage, err := vectors.NewSQLiteVecStorage("data/vectors.db")
+			vecCfg := vectors.SQLiteVecConfig{Path: "data/vectors.db", Dimension: vectors.EmbeddingDim, EnableExtension: false}
+			vectorStorage, err := vectors.NewSQLiteVecStorage(vecCfg, nil) // TODO inject real logger
 			if err != nil {
-				// Log error and continue without vector endpoints
-				// In production, this should be handled more gracefully
+				// Skip vector endpoints if initialization fails
 				return
 			}
-			
+
 			vectorHandler := handlers.NewVectorHandler(c, vectorStorage)
-			
+
 			// Vector CRUD operations
 			vectorGroup.POST("/embeddings", vectorHandler.StoreEmbedding)
 			vectorGroup.POST("/search", vectorHandler.SearchEmbeddings)

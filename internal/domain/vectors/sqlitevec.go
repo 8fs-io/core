@@ -3,28 +3,62 @@ package vectors
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
 
+// Logger is a minimal interface to allow structured logging without
+// importing a concrete logging package here. The real application logger
+// should satisfy this.
+type Logger interface {
+	Info(msg string, kv ...interface{})
+	Warn(msg string, kv ...interface{})
+	Error(msg string, kv ...interface{})
+}
+
+// noopLogger is used when no logger is provided.
+type noopLogger struct{}
+
+func (n *noopLogger) Info(string, ...interface{})  {}
+func (n *noopLogger) Warn(string, ...interface{})  {}
+func (n *noopLogger) Error(string, ...interface{}) {}
+
+// SQLiteVecConfig carries construction parameters.
+type SQLiteVecConfig struct {
+	Path            string
+	Dimension       int  // must match EmbeddingDim currently
+	EnableExtension bool // attempt to load vec0 extension
+}
+
 // SQLiteVecStorage provides sqlite-vec backed vector storage
 type SQLiteVecStorage struct {
-	db *sql.DB
+	db       *sql.DB
+	cfg      SQLiteVecConfig
+	logger   Logger
+	fallback bool // true if vec extension not loaded
 }
 
 // NewSQLiteVecStorage creates a new sqlite-vec storage instance
-func NewSQLiteVecStorage(dbPath string) (*SQLiteVecStorage, error) {
-	// Note: This requires sqlite-vec extension to be compiled with SQLite
-	// For now, we'll create the connection and defer extension loading
-	db, err := sql.Open("sqlite3", dbPath)
+func NewSQLiteVecStorage(cfg SQLiteVecConfig, logger Logger) (*SQLiteVecStorage, error) {
+	if cfg.Path == "" {
+		return nil, errors.New("sqlite vec storage path required")
+	}
+	if cfg.Dimension != EmbeddingDim { // enforce current single dimension
+		return nil, fmt.Errorf("configured dimension %d != supported dimension %d", cfg.Dimension, EmbeddingDim)
+	}
+	if logger == nil {
+		logger = &noopLogger{}
+	}
+
+	db, err := sql.Open("sqlite3", cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	storage := &SQLiteVecStorage{db: db}
+	storage := &SQLiteVecStorage{db: db, cfg: cfg, logger: logger}
 
-	// Initialize the schema
 	if err := storage.initSchema(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
@@ -35,14 +69,16 @@ func NewSQLiteVecStorage(dbPath string) (*SQLiteVecStorage, error) {
 
 // initSchema creates the necessary tables and loads sqlite-vec extension
 func (s *SQLiteVecStorage) initSchema() error {
-	// First, try to load the sqlite-vec extension
-	// Note: This will fail without proper sqlite-vec installation
-	_, err := s.db.Exec("SELECT load_extension('vec0')")
-	if err != nil {
-		// For development, we'll continue without the extension
-		// but log the error
-		fmt.Printf("Warning: sqlite-vec extension not available: %v\n", err)
-		fmt.Println("Falling back to regular SQLite tables for development")
+	if s.cfg.EnableExtension {
+		if _, err := s.db.Exec("SELECT load_extension('vec0')"); err != nil {
+			s.logger.Warn("sqlite-vec extension unavailable; falling back", "error", err)
+			s.fallback = true
+		} else {
+			s.logger.Info("sqlite-vec extension loaded successfully")
+		}
+	} else {
+		s.fallback = true
+		s.logger.Info("sqlite-vec extension disabled via config")
 	}
 
 	// Create embeddings table with sqlite-vec virtual table syntax
@@ -55,10 +91,9 @@ func (s *SQLiteVecStorage) initSchema() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`
 
-	_, err = s.db.Exec(createVecTable)
+	_, err := s.db.Exec(createVecTable)
 	if err != nil {
-		// Fallback to regular table for development
-		fmt.Println("Creating fallback table (without vec0 optimization)")
+		s.logger.Warn("creating fallback embeddings table", "error", err)
 		createFallbackTable := `
 		CREATE TABLE IF NOT EXISTS embeddings (
 			id TEXT PRIMARY KEY,
@@ -67,10 +102,10 @@ func (s *SQLiteVecStorage) initSchema() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`
 
-		_, err = s.db.Exec(createFallbackTable)
-		if err != nil {
-			return fmt.Errorf("failed to create fallback embeddings table: %w", err)
+		if _, err2 := s.db.Exec(createFallbackTable); err2 != nil {
+			return fmt.Errorf("failed to create fallback embeddings table: %w", err2)
 		}
+		s.fallback = true
 	}
 
 	return nil
@@ -104,15 +139,14 @@ func (s *SQLiteVecStorage) Store(vector *Vector) error {
 
 // Search performs vector similarity search
 func (s *SQLiteVecStorage) Search(query []float64, topK int) ([]SearchResult, error) {
-	// Try sqlite-vec optimized search first
-	results, err := s.vectorSearch(query, topK)
-	if err != nil {
-		// Fall back to linear search if vec extension is not available
-		fmt.Println("Vector search failed, falling back to linear search")
-		return s.linearSearch(query, topK)
+	if !s.fallback { // attempt optimized path first
+		results, err := s.vectorSearch(query, topK)
+		if err == nil {
+			return results, nil
+		}
+		s.logger.Warn("vector search optimized path failed; falling back", "error", err)
 	}
-
-	return results, nil
+	return s.linearSearch(query, topK)
 }
 
 // vectorSearch uses sqlite-vec extension for optimized search
