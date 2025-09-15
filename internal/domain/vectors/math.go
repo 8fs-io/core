@@ -5,6 +5,11 @@ import (
 	"math"
 )
 
+// For current implementation we lock embedding dimension to a single size (384)
+// This simplifies the sqlite-vec virtual table schema and will be revisited
+// when dynamic dimensions & migrations are required.
+const EmbeddingDim = 384
+
 // Vector represents an embedding vector with metadata
 type Vector struct {
 	ID        string                 `json:"id"`
@@ -26,29 +31,29 @@ func (vm *VectorMath) CosineSimilarity(a, b []float64) (float64, error) {
 	if len(a) != len(b) {
 		return 0.0, fmt.Errorf("vector dimensions don't match: %d vs %d", len(a), len(b))
 	}
-	
+
 	if len(a) == 0 {
 		return 0.0, fmt.Errorf("cannot compute similarity of empty vectors")
 	}
-	
+
 	dotProduct := vm.DotProduct(a, b)
 	normA := vm.L2Norm(a)
 	normB := vm.L2Norm(b)
-	
+
 	// Handle zero vectors
 	if normA == 0 || normB == 0 {
 		return 0.0, nil
 	}
-	
+
 	similarity := dotProduct / (normA * normB)
-	
+
 	// Clamp to [-1, 1] to handle floating point precision issues
 	if similarity > 1.0 {
 		similarity = 1.0
 	} else if similarity < -1.0 {
 		similarity = -1.0
 	}
-	
+
 	return similarity, nil
 }
 
@@ -73,8 +78,8 @@ func (vm *VectorMath) L2Norm(v []float64) float64 {
 // ValidateDimensions checks if vector dimensions are within acceptable range
 func (vm *VectorMath) ValidateDimensions(embedding []float64) error {
 	dim := len(embedding)
-	if dim < 384 || dim > 1536 {
-		return fmt.Errorf("embedding dimension %d out of range [384, 1536]", dim)
+	if dim != EmbeddingDim {
+		return fmt.Errorf("embedding dimension %d invalid: expected %d", dim, EmbeddingDim)
 	}
 	return nil
 }
@@ -84,22 +89,22 @@ func (vm *VectorMath) ValidateVector(v *Vector) error {
 	if v.ID == "" {
 		return fmt.Errorf("vector ID cannot be empty")
 	}
-	
+
 	if len(v.Embedding) == 0 {
 		return fmt.Errorf("embedding cannot be empty")
 	}
-	
+
 	if err := vm.ValidateDimensions(v.Embedding); err != nil {
 		return err
 	}
-	
+
 	// Check for NaN or infinite values
 	for i, val := range v.Embedding {
 		if math.IsNaN(val) || math.IsInf(val, 0) {
 			return fmt.Errorf("invalid value at dimension %d: %f", i, val)
 		}
 	}
-	
+
 	return nil
 }
 
