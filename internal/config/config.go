@@ -15,6 +15,7 @@ type Config struct {
 	Metrics MetricsConfig
 	Audit   AuditConfig
 	Logger  LoggerConfig
+	Vector  VectorConfig
 }
 
 type ServerConfig struct {
@@ -82,6 +83,14 @@ type LoggerConfig struct {
 	Compress   bool
 }
 
+// VectorConfig holds vector storage related configuration
+type VectorConfig struct {
+	Enabled         bool
+	DBPath          string
+	EnableExtension bool
+	Dimension       int
+}
+
 // Load reads configuration from environment variables with defaults
 func Load() (*Config, error) {
 	cfg := &Config{
@@ -144,6 +153,12 @@ func Load() (*Config, error) {
 			MaxBackups: getEnvOrDefaultInt("LOG_MAX_BACKUPS", 3),
 			MaxAge:     getEnvOrDefaultInt("LOG_MAX_AGE", 30),
 			Compress:   getEnvOrDefaultBool("LOG_COMPRESS", true),
+		},
+		Vector: VectorConfig{
+			Enabled:         getEnvOrDefaultBool("VECTOR_ENABLED", true),
+			DBPath:          getEnvOrDefault("VECTOR_DB_PATH", "data/vectors.db"),
+			EnableExtension: getEnvOrDefaultBool("VECTOR_ENABLE_EXTENSION", false),
+			Dimension:       getEnvOrDefaultInt("VECTOR_DIMENSION", 384),
 		},
 	}
 

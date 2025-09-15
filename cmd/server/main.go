@@ -74,6 +74,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Close vector storage if initialized
+	if c.VectorStorage != nil {
+		if err := c.VectorStorage.Close(); err != nil {
+			c.Logger.Warn("failed closing vector storage", "error", err)
+		} else {
+			c.Logger.Info("vector storage closed")
+		}
+	}
+
 	c.Logger.Info("Server exited")
 }
 

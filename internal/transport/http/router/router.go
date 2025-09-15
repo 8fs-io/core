@@ -2,7 +2,6 @@ package router
 
 import (
 	"github.com/8fs/8fs/internal/container"
-	"github.com/8fs/8fs/internal/domain/vectors"
 	"github.com/8fs/8fs/internal/transport/http/handlers"
 	"github.com/gin-gonic/gin"
 )
@@ -36,18 +35,9 @@ func SetupRoutes(r *gin.Engine, c *container.Container) {
 		}
 
 		// Vector endpoints (experimental)
-		vectorGroup := v1.Group("/vectors")
-		{
-			vecCfg := vectors.SQLiteVecConfig{Path: "data/vectors.db", Dimension: vectors.EmbeddingDim, EnableExtension: false}
-			vectorStorage, err := vectors.NewSQLiteVecStorage(vecCfg, nil) // TODO inject real logger
-			if err != nil {
-				// Skip vector endpoints if initialization fails
-				return
-			}
-
-			vectorHandler := handlers.NewVectorHandler(c, vectorStorage)
-
-			// Vector CRUD operations
+		if c.Config.Vector.Enabled && c.VectorStorage != nil {
+			vectorGroup := v1.Group("/vectors")
+			vectorHandler := handlers.NewVectorHandler(c, c.VectorStorage)
 			vectorGroup.POST("/embeddings", vectorHandler.StoreEmbedding)
 			vectorGroup.POST("/search", vectorHandler.SearchEmbeddings)
 			vectorGroup.GET("/embeddings/:id", vectorHandler.GetEmbedding)
