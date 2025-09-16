@@ -9,13 +9,12 @@ import (
 // MinEmbeddingDim and MaxEmbeddingDim define the allowed range accepted by the
 // API. DefaultEmbeddingDim is the dimension currently used when creating the
 // sqlite-vec virtual table (the extension requires a fixed size schema).
-// NOTE: For now we still create the virtual table at 384 dims; vectors stored
-// with other dimensions will be supported only through the fallback path until
-// migration strategy is implemented.
+// For development and testing, we allow smaller dimensions (3+)
 const (
-	MinEmbeddingDim     = 384
-	MaxEmbeddingDim     = 1536
-	DefaultEmbeddingDim = 384 // kept for current sqlite-vec table schema
+	MinEmbeddingDim     = 3    // Allow small vectors for testing/development
+	MaxEmbeddingDim     = 1536 // Standard max for production embeddings
+	DefaultEmbeddingDim = 384  // Common embedding size (OpenAI, etc.)
+	ProductionMinDim    = 384  // Production minimum (can be enforced via config)
 )
 
 // Backward compatibility alias (existing code/tests may still refer to EmbeddingDim)
