@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/8fs-io/core/internal/container"
 	"github.com/8fs-io/core/internal/domain/vectors"
@@ -38,6 +39,9 @@ type SearchEmbeddingsRequest struct {
 
 // StoreEmbedding handles POST /vectors/embeddings
 func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
+	// Starting timer
+	start := time.Now()
+
 	var req StoreEmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -82,15 +86,22 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		return
 	}
 
+	// Tracking the insert operation duration
+	trackInsertOperation(start)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Vector stored successfully",
 		"id":         req.ID,
 		"dimensions": len(req.Embedding),
 	})
+
 }
 
 // SearchEmbeddings handles POST /vectors/search
 func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
+	// Starting timer
+	start := time.Now()
+
 	var req SearchEmbeddingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -125,12 +136,16 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 		return
 	}
 
+	// Tracking the search operation duration
+	trackSearchOperation(start)
+
 	c.JSON(http.StatusOK, gin.H{
 		"results":          results,
 		"query_dimensions": len(req.Query),
 		"top_k":            req.TopK,
 		"count":            len(results),
 	})
+
 }
 
 // GetEmbedding handles GET /vectors/embeddings/:id
