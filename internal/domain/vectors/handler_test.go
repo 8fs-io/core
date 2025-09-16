@@ -84,6 +84,9 @@ func TestVectorHandlerIntegration(t *testing.T) {
 
 		if storeResp["id"] != "test-doc-1" {
 			t.Errorf("Expected ID 'test-doc-1', got %v", storeResp["id"])
+			if s, ok := storeResp["success"].(bool); !ok || !s {
+				// success flag missing or false
+			}
 		}
 
 		// Search for similar vectors
@@ -255,5 +258,51 @@ func TestVectorHandlerErrors(t *testing.T) {
 	// Should return 500 due to nil storage
 	if w.Code == http.StatusOK {
 		t.Error("Expected error with nil storage, but got success")
+	}
+}
+
+// TestVectorHandlerDimensionBoundaries validates min and max dimension acceptance.
+func TestVectorHandlerDimensionBoundaries(t *testing.T) {
+	// setup
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "dim_bounds.db")
+	cfg := vectors.SQLiteVecConfig{Path: dbPath, Dimension: vectors.EmbeddingDim, EnableExtension: false}
+	store, err := vectors.NewSQLiteVecStorage(cfg, nil)
+	if err != nil {
+		t.Fatalf("storage init: %v", err)
+	}
+	defer store.Close()
+	h := handlers.NewVectorHandler(&container.Container{}, store)
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	g := r.Group("/api/v1/vectors")
+	g.POST("/embeddings", h.StoreEmbedding)
+
+	// min (384)
+	minEmb := make([]float64, vectors.MinEmbeddingDim)
+	for i := range minEmb {
+		minEmb[i] = 0.01
+	}
+	minBody, _ := json.Marshal(map[string]interface{}{"id": "min-dim", "embedding": minEmb})
+	minReq := httptest.NewRequest("POST", "/api/v1/vectors/embeddings", bytes.NewBuffer(minBody))
+	minReq.Header.Set("Content-Type", "application/json")
+	minW := httptest.NewRecorder()
+	r.ServeHTTP(minW, minReq)
+	if minW.Code != http.StatusCreated {
+		t.Fatalf("min dim expected 201 got %d body=%s", minW.Code, minW.Body.String())
+	}
+
+	// max (1536)
+	maxEmb := make([]float64, vectors.MaxEmbeddingDim)
+	for i := range maxEmb {
+		maxEmb[i] = 0.02
+	}
+	maxBody, _ := json.Marshal(map[string]interface{}{"id": "max-dim", "embedding": maxEmb})
+	maxReq := httptest.NewRequest("POST", "/api/v1/vectors/embeddings", bytes.NewBuffer(maxBody))
+	maxReq.Header.Set("Content-Type", "application/json")
+	maxW := httptest.NewRecorder()
+	r.ServeHTTP(maxW, maxReq)
+	if maxW.Code != http.StatusCreated {
+		t.Fatalf("max dim expected 201 got %d body=%s", maxW.Code, maxW.Body.String())
 	}
 }

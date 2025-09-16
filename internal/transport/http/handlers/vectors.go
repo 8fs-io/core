@@ -38,6 +38,10 @@ type SearchEmbeddingsRequest struct {
 
 // StoreEmbedding handles POST /vectors/embeddings
 func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
+	if h == nil || h.storage == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "vector storage not initialized"})
+		return
+	}
 	var req StoreEmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -83,9 +87,8 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message":    "Vector stored successfully",
-		"id":         req.ID,
-		"dimensions": len(req.Embedding),
+		"success": true,
+		"id":      req.ID,
 	})
 }
 
