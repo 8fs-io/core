@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/8fs/8fs/internal/domain/storage"
-	"github.com/8fs/8fs/pkg/errors"
-	"github.com/8fs/8fs/pkg/logger"
+	"github.com/8fs-io/core/internal/domain/storage"
+	"github.com/8fs-io/core/pkg/errors"
+	"github.com/8fs-io/core/pkg/logger"
 )
 
 // filesystemRepository implements storage.Repository using filesystem

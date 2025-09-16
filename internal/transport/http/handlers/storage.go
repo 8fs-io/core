@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/8fs/8fs/internal/container"
-	"github.com/8fs/8fs/internal/domain/storage"
-	"github.com/8fs/8fs/pkg/errors"
+	"github.com/8fs-io/core/internal/container"
+	"github.com/8fs-io/core/internal/domain/storage"
+	"github.com/8fs-io/core/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 

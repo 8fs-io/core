@@ -1,4 +1,4 @@
-package main
+package eightfs_test
 
 import (
 	"bytes"
@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/8fs/8fs/internal/config"
-	"github.com/8fs/8fs/internal/container"
-	"github.com/8fs/8fs/internal/transport/http/middleware"
-	"github.com/8fs/8fs/internal/transport/http/router"
+	"github.com/8fs-io/core/internal/config"
+	"github.com/8fs-io/core/internal/container"
+	"github.com/8fs-io/core/internal/transport/http/middleware"
+	"github.com/8fs-io/core/internal/transport/http/router"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )

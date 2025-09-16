@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/8fs/8fs/pkg/errors"
-	"github.com/8fs/8fs/pkg/logger"
+	"github.com/8fs-io/core/pkg/errors"
+	"github.com/8fs-io/core/pkg/logger"
 )
 
 // service implements the Service interface
