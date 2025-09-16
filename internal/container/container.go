@@ -6,6 +6,7 @@ import (
 	"github.com/8fs/8fs/internal/config"
 	"github.com/8fs/8fs/internal/domain/storage"
 	storageInfra "github.com/8fs/8fs/internal/infrastructure/storage"
+	"github.com/8fs/8fs/internal/domain/vectors"
 	"github.com/8fs/8fs/pkg/logger"
 )
 
@@ -17,6 +18,7 @@ type Container struct {
 	StorageRepo    storage.Repository
 	StorageService storage.Service
 	Validator      storage.Validator
+	VectorStorage  *vectors.SQLiteVecStorage
 }
 
 // NewContainer creates a new dependency injection container
@@ -63,12 +65,26 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	// Initialize storage service
 	storageService := storage.NewService(storageRepo, validator, appLogger)
 
-	return &Container{
+	c := &Container{
 		Config:         cfg,
 		Logger:         appLogger,
 		AuditLogger:    auditLogger,
 		StorageRepo:    storageRepo,
 		StorageService: storageService,
 		Validator:      validator,
-	}, nil
+	}
+
+	// Initialize vector storage if enabled
+	if cfg.Vector.Enabled {
+		vecCfg := vectors.SQLiteVecConfig{Path: cfg.Vector.DBPath, Dimension: cfg.Vector.Dimension, EnableExtension: cfg.Vector.EnableExtension}
+		vecStore, err := vectors.NewSQLiteVecStorage(vecCfg, appLogger)
+		if err != nil {
+			// Log but don't fail container creation
+			appLogger.Warn("vector storage initialization failed", "error", err)
+		} else {
+			c.VectorStorage = vecStore
+		}
+	}
+
+	return c, nil
 }

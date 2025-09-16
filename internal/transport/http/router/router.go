@@ -33,6 +33,17 @@ func SetupRoutes(r *gin.Engine, c *container.Container) {
 			storage.DELETE("/buckets/:bucket/objects/*key", storageHandler.DeleteObject)
 			storage.GET("/buckets/:bucket/objects", storageHandler.ListObjects)
 		}
+
+		// Vector endpoints (experimental)
+		if c.Config.Vector.Enabled && c.VectorStorage != nil {
+			vectorGroup := v1.Group("/vectors")
+			vectorHandler := handlers.NewVectorHandler(c, c.VectorStorage)
+			vectorGroup.POST("/embeddings", vectorHandler.StoreEmbedding)
+			vectorGroup.POST("/search", vectorHandler.SearchEmbeddings)
+			vectorGroup.GET("/embeddings/:id", vectorHandler.GetEmbedding)
+			vectorGroup.GET("/embeddings", vectorHandler.ListEmbeddings)
+			vectorGroup.DELETE("/embeddings/:id", vectorHandler.DeleteEmbedding)
+		}
 	}
 
 	// S3-compatible endpoints (with optional auth)
