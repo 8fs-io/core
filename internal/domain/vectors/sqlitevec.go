@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
@@ -28,7 +29,7 @@ func (n *noopLogger) Error(string, ...interface{}) {}
 // SQLiteVecConfig carries construction parameters.
 type SQLiteVecConfig struct {
 	Path            string
-	Dimension       int  // must match EmbeddingDim currently
+	Dimension       int  // requested / primary dimension (API-level)
 	EnableExtension bool // attempt to load vec0 extension
 }
 
@@ -45,8 +46,11 @@ func NewSQLiteVecStorage(cfg SQLiteVecConfig, logger Logger) (*SQLiteVecStorage,
 	if cfg.Path == "" {
 		return nil, errors.New("sqlite vec storage path required")
 	}
-	if cfg.Dimension != EmbeddingDim { // enforce current single dimension
-		return nil, fmt.Errorf("configured dimension %d != supported dimension %d", cfg.Dimension, EmbeddingDim)
+	if cfg.Dimension == 0 {
+		cfg.Dimension = DefaultEmbeddingDim
+	}
+	if cfg.Dimension < MinEmbeddingDim || cfg.Dimension > MaxEmbeddingDim {
+		return nil, fmt.Errorf("configured dimension %d invalid: expected between %d and %d", cfg.Dimension, MinEmbeddingDim, MaxEmbeddingDim)
 	}
 	if logger == nil {
 		logger = &noopLogger{}
@@ -83,13 +87,13 @@ func (s *SQLiteVecStorage) initSchema() error {
 
 	// Create embeddings table with sqlite-vec virtual table syntax
 	// If extension is not available, this will fail but we'll create a fallback
-	createVecTable := `
+	createVecTable := fmt.Sprintf(`
 	CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
 		id TEXT PRIMARY KEY,
-		embedding FLOAT[384],
+		embedding FLOAT[%d],
 		metadata TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`
+	)`, DefaultEmbeddingDim)
 
 	_, err := s.db.Exec(createVecTable)
 	if err != nil {
@@ -104,6 +108,10 @@ func (s *SQLiteVecStorage) initSchema() error {
 
 		if _, err2 := s.db.Exec(createFallbackTable); err2 != nil {
 			return fmt.Errorf("failed to create fallback embeddings table: %w", err2)
+		}
+		// Add basic index on created_at for listing future operations
+		if _, err2 := s.db.Exec("CREATE INDEX IF NOT EXISTS idx_embeddings_created_at ON embeddings(created_at)"); err2 != nil {
+			s.logger.Warn("failed to create created_at index", "error", err2)
 		}
 		s.fallback = true
 	}
@@ -262,13 +270,7 @@ func (s *SQLiteVecStorage) linearSearch(query []float64, topK int) ([]SearchResu
 	}
 
 	// Sort by similarity (highest first)
-	for i := 0; i < len(allResults)-1; i++ {
-		for j := i + 1; j < len(allResults); j++ {
-			if allResults[i].Score < allResults[j].Score {
-				allResults[i], allResults[j] = allResults[j], allResults[i]
-			}
-		}
-	}
+	sort.Slice(allResults, func(i, j int) bool { return allResults[i].Score > allResults[j].Score })
 
 	// Return top K results
 	if topK > len(allResults) {

@@ -176,45 +176,6 @@ results = store.search_similar("query", top_k=10)
 
 ---
 
-## 📈 Execution Plan (30-Day Sprint)
-
-### **Week 1-2: Ship MVP**
-**Goal**: Functional S3 + vector API
-
-**Tasks**:
-- [ ] Implement `/vectors/embeddings` and `/vectors/search` (SQLite, cosine)
-- [ ] Keep binary <50MB on Pi 5
-- [ ] Add Python examples to README
-- [ ] Benchmark vs. MinIO (S3 ops, vector search)
-- [ ] Tag v0.1 on GitHub with CONTRIBUTING.md
-
-**Metric**: Vector search <50ms p95 for 1K vectors on Pi
-
-### **Week 3: Community Launch**  
-**Goal**: 50+ GitHub stars
-
-**Plan**:
-- **Mon**: HN "Show HN: S3 + Vectors for AI on Pi (<50MB)" + 1-min Pi demo video
-- **Tue**: r/LocalLLaMA post with video
-- **Wed**: r/selfhosted cross-post
-- **Thu**: r/golang technical post
-- **Fri**: Share in AI Discords (Ollama, LangChain)
-
-**Metric**: 50+ stars, 5+ issues opened
-
-### **Week 4: Iterate**
-**Goal**: Validate product-market fit
-
-**Tasks**:
-- [ ] Reply to all feedback in <12h
-- [ ] Fix bugs, optimize performance
-- [ ] Document 2-3 real user stories
-- [ ] Plan v0.2 (WASM or UI) based on feedback
-
-**Metric**: 100+ stars, 3+ external PRs, 1K+ Docker pulls
-
----
-
 ## 💰 Business Model (Delayed)
 
 ### **Phase 1: Pure OSS (0-12 Months)**
@@ -226,7 +187,6 @@ results = store.search_similar("query", top_k=10)
 - **Free Core**: S3 + vectors stay open source
 - **Hosted Option**: 8fs Cloud for zero-ops (e.g., $10/month)
 - **Add-Ons**: SSO, support (only if demanded)
-- **Rule**: No paywalls until 1K stars and proven usage
 
 ---
 
@@ -242,52 +202,6 @@ results = store.search_similar("query", top_k=10)
 | **WASM Support** | ❌ (v0.2) | ❌ | ❌ | ❌ | ❌ |
 | **Cost (Self-Hosted)** | Free | Free | N/A | Free | N/A |
 
----
-
-## 🎯 Success Metrics
-
-### **30 Days**
-- [ ] 100+ GitHub stars
-- [ ] Working `/vectors` API (<50ms p95)
-- [ ] Pi benchmarks published
-- [ ] 10+ GitHub issues
-- [ ] 1K+ Docker pulls
-- [ ] HN or Reddit feature
-
-### **90 Days**
-- [ ] 500+ stars
-- [ ] 5+ production users with stories
-- [ ] Ollama/LangChain integration guides
-- [ ] 5+ external PRs
-- [ ] AI newsletter mention (e.g., The Batch)
-
-### **6 Months**
-- [ ] 1K+ stars
-- [ ] 25+ active contributors
-- [ ] Clear differentiation vs. MinIO
-- [ ] Sustainable funding (donations)
-- [ ] Decide: Scale or pivot based on data
-
-**Reality Check**: If <100 stars in 30 days, pivot or rethink approach.
-
----
-
-## 🚀 Why We'll Win
-
-### **Technical Edge**
-1. **Simplicity**: One binary, zero deps, runs anywhere
-2. **AI-Native**: S3 + vectors for local LLMs  
-3. **Pi-Ready**: Lightweight for edge homelabs
-
-### **Execution Edge**
-1. **Fast Shipping**: v0.1 in 2 weeks, not years
-2. **Community-Driven**: Build with users, reply fast
-3. **Benchmarks First**: Prove <50MB, <50ms claims
-
-### **Market Timing**
-1. **Local AI Boom**: Ollama/LLaMA.cpp growth
-2. **Self-Hosting Surge**: Devs want cloud alternatives  
-3. **Edge Demand**: Pi/IoT needs lightweight storage
 
 ---
 
