@@ -1,4 +1,32 @@
-# 8fs – S3-Compatible Storage Server
+# 8fs – S3-Compatible Storage Server with Native Vector Search
+
+## 🌟 Vision
+
+**8fs is the first S3-compatible storage server with built-in vector storage for AI developers.**
+
+Not a MinIO clone—8fs unifies object storage and vector embeddings in a lightweight binary for local AI labs, from laptops to Raspberry Pi clusters.
+
+> *S3 + vector storage in one <50MB binary—perfect for indie AI workflows.*
+
+See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadmap.
+
+> **Go module path:** `github.com/8fs-io/core`
+
+## 🆕 Recent Changes
+
+- **Canonical Go module path:** Now using `github.com/8fs-io/core` for all imports and go.mod.
+- **Vector storage subsystem:**
+  - Pluggable vector storage with [sqlite-vec](https://github.com/asg017/sqlite-vec) extension for fast vector search.
+  - Automatic fallback to pure Go linear search if extension is unavailable.
+  - Fixed embedding dimension (384) for all vectors.
+  - Dependency injection and config-driven enable/disable.
+  - Structured logging and audit support.
+  - Graceful shutdown and lifecycle management.
+- **Codebase refactor:**
+  - All root Go files now use a library package (no more package main in root).
+  - Integration tests and S3 compatibility tests modernized or archived.
+  - All internal imports updated to canonical org/repo path.
+
 
 **8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture and production-ready deployment options.  
 Perfect for developers who want a simple, self-hosted storage solution.
@@ -183,12 +211,22 @@ When running with `docker-compose --profile monitoring up -d`:
 
 ---
 
-## 🚀 Future Roadmap
 
-- **Multi-tenant support**: Tenant isolation and management
-- **Web UI**: Dashboard for storage management  
-- **Enhanced backends**: Additional storage drivers
-- **Advanced features**: Versioning, lifecycle policies
+## � Roadmap / Next Steps
+
+- **Vector storage**
+  - [ ] Add explicit test coverage for fallback (extension-disabled) path
+  - [ ] Optimize linear search sort (replace bubble sort with sort.Slice)
+  - [ ] Document vector config, fallback, and logging in detail
+  - [ ] Add Prometheus metrics for vector queries (counters, histograms)
+- **S3 compatibility**
+  - [ ] Port/restore S3 compatibility tests using new router and DI
+- **General**
+  - [ ] Multi-tenant support: Tenant isolation and management
+  - [ ] Web UI: Dashboard for storage management
+  - [ ] Enhanced backends: Additional storage drivers
+  - [ ] Advanced features: Versioning, lifecycle policies
+
 
 ## Client Usage Examples
 
