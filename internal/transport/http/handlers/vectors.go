@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/8fs/8fs/internal/container"
-	"github.com/8fs/8fs/internal/domain/vectors"
+	"github.com/8fs-io/core/internal/container"
+	"github.com/8fs-io/core/internal/domain/vectors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,7 +41,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	var req StoreEmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request payload",
+			"error":   "Invalid request payload",
 			"details": err.Error(),
 		})
 		return
@@ -51,7 +51,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	vm := vectors.NewVectorMath()
 	if err := vm.ValidateDimensions(req.Embedding); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid embedding dimensions",
+			"error":   "Invalid embedding dimensions",
 			"details": err.Error(),
 		})
 		return
@@ -67,7 +67,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Validate the complete vector
 	if err := vm.ValidateVector(vector); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid vector data",
+			"error":   "Invalid vector data",
 			"details": err.Error(),
 		})
 		return
@@ -76,15 +76,15 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Store the vector
 	if err := h.storage.Store(vector); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to store vector",
+			"error":   "Failed to store vector",
 			"details": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Vector stored successfully",
-		"id": req.ID,
+		"message":    "Vector stored successfully",
+		"id":         req.ID,
 		"dimensions": len(req.Embedding),
 	})
 }
@@ -94,7 +94,7 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	var req SearchEmbeddingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request payload",
+			"error":   "Invalid request payload",
 			"details": err.Error(),
 		})
 		return
@@ -109,7 +109,7 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	vm := vectors.NewVectorMath()
 	if err := vm.ValidateDimensions(req.Query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid query dimensions",
+			"error":   "Invalid query dimensions",
 			"details": err.Error(),
 		})
 		return
@@ -119,17 +119,17 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	results, err := h.storage.Search(req.Query, req.TopK)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Search failed",
+			"error":   "Search failed",
 			"details": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"results": results,
+		"results":          results,
 		"query_dimensions": len(req.Query),
-		"top_k": req.TopK,
-		"count": len(results),
+		"top_k":            req.TopK,
+		"count":            len(results),
 	})
 }
 
@@ -146,7 +146,7 @@ func (h *VectorHandler) GetEmbedding(c *gin.Context) {
 	// For now, we'll implement this as a search-by-ID approach
 	// In a full implementation, we'd have a direct lookup method
 	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": "Direct vector lookup not yet implemented",
+		"error":   "Direct vector lookup not yet implemented",
 		"message": "Use search endpoint instead",
 	})
 }
@@ -166,9 +166,9 @@ func (h *VectorHandler) ListEmbeddings(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": "Vector listing not yet implemented",
+		"error":   "Vector listing not yet implemented",
 		"message": "Use search endpoint instead",
-		"limit": limit,
+		"limit":   limit,
 	})
 }
 
@@ -183,8 +183,8 @@ func (h *VectorHandler) DeleteEmbedding(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": "Vector deletion not yet implemented",
+		"error":   "Vector deletion not yet implemented",
 		"message": "Will be implemented in future version",
-		"id": id,
+		"id":      id,
 	})
 }

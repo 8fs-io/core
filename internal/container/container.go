@@ -3,11 +3,11 @@ package container
 import (
 	"fmt"
 
-	"github.com/8fs/8fs/internal/config"
-	"github.com/8fs/8fs/internal/domain/storage"
-	storageInfra "github.com/8fs/8fs/internal/infrastructure/storage"
-	"github.com/8fs/8fs/internal/domain/vectors"
-	"github.com/8fs/8fs/pkg/logger"
+	"github.com/8fs-io/core/internal/config"
+	"github.com/8fs-io/core/internal/domain/storage"
+	"github.com/8fs-io/core/internal/domain/vectors"
+	storageInfra "github.com/8fs-io/core/internal/infrastructure/storage"
+	"github.com/8fs-io/core/pkg/logger"
 )
 
 // Container holds all application dependencies

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/8fs/8fs/internal/container"
+	"github.com/8fs-io/core/internal/container"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"

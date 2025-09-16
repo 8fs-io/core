@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/8fs/8fs/internal/container"
-	"github.com/8fs/8fs/internal/domain/vectors"
-	"github.com/8fs/8fs/internal/transport/http/handlers"
+	"github.com/8fs-io/core/internal/container"
+	"github.com/8fs-io/core/internal/domain/vectors"
+	"github.com/8fs-io/core/internal/transport/http/handlers"
 	"github.com/gin-gonic/gin"
 )
 

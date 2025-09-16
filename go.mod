@@ -1,4 +1,4 @@
-module github.com/8fs/8fs
+module github.com/8fs-io/core
 
 go 1.23.0
 

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/8fs/8fs/pkg/logger"
+	"github.com/8fs-io/core/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
