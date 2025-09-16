@@ -93,17 +93,11 @@ func (h *MetricsHandler) Handle(c *gin.Context) {
 	promhttp.Handler().ServeHTTP(c.Writer, c.Request)
 }
 
-// Tracking the vector insert operation
+// Tracking the vector operation
 func trackOperation(start time.Time, operation, status string) {
 	vectorOperationsTotal.WithLabelValues(operation, status).Inc()
 	operationDuration.WithLabelValues(operation).Observe(time.Since(start).Seconds())
 }
-
-// Tracking the vector search operation
-// func trackSearchOperation(start time.Time) {
-// 	vectorOperationsTotal.WithLabelValues("search").Inc()
-// 	operationDuration.WithLabelValues("search").Observe(time.Since(start).Seconds())
-// }
 
 // UpdateStorageMetrics updates storage-related metrics
 func (h *MetricsHandler) updateStorageMetrics() {
