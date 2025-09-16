@@ -60,7 +60,7 @@ var (
 			Name: "vector_operations_total",
 			Help: "Total number of vector operations",
 		},
-		[]string{"operation"},
+		[]string{"operation", "status"},
 	)
 
 	// Operation (insert/search) duration
@@ -94,16 +94,16 @@ func (h *MetricsHandler) Handle(c *gin.Context) {
 }
 
 // Tracking the vector insert operation
-func trackInsertOperation(start time.Time) {
-	vectorOperationsTotal.WithLabelValues("insert").Inc()
-	operationDuration.WithLabelValues("insert").Observe(time.Since(start).Seconds())
+func trackOperation(start time.Time, operation, status string) {
+	vectorOperationsTotal.WithLabelValues(operation, status).Inc()
+	operationDuration.WithLabelValues(operation).Observe(time.Since(start).Seconds())
 }
 
 // Tracking the vector search operation
-func trackSearchOperation(start time.Time) {
-	vectorOperationsTotal.WithLabelValues("search").Inc()
-	operationDuration.WithLabelValues("search").Observe(time.Since(start).Seconds())
-}
+// func trackSearchOperation(start time.Time) {
+// 	vectorOperationsTotal.WithLabelValues("search").Inc()
+// 	operationDuration.WithLabelValues("search").Observe(time.Since(start).Seconds())
+// }
 
 // UpdateStorageMetrics updates storage-related metrics
 func (h *MetricsHandler) updateStorageMetrics() {
