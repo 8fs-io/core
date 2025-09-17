@@ -6,3 +6,6 @@ STRATEGIC_ANALYSIS.md
 CRITICS.md
 
 data/*
+
+# Ignore all files in bin/ directory (compiled binaries)
+bin/*
