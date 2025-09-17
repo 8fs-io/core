@@ -237,6 +237,45 @@ Your 8fs server is compatible with all standard S3 clients! Check out these exam
 - **`test_nodejs_client.js`** - Node.js AWS SDK v3 example  
 - **`test_clients.sh`** - Automated test runner for all clients
 
+### AWS CLI Examples
+
+You can use AWS CLI with 8fs for common S3 operations. First, configure a profile for 8fs:
+
+For detailed limitations and performance characteristics, refer to [AWS_CLI_INTEGRATION.md](./docs/AWS_CLI_INTEGRATION.md).
+
+```bash
+aws configure set aws_access_key_id AKIAIOSFODNN7EXAMPLE --profile 8fs
+aws configure set aws_secret_access_key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY --profile 8fs
+aws configure set region us-east-1 --profile 8fs
+```
+
+Then use AWS CLI commands with the endpoint URL parameter pointing to your 8fs server:
+
+```bash
+# List buckets
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 ls
+
+# Create a bucket
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 mb s3://my-bucket
+
+# Upload a file
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 cp README.md s3://my-bucket/
+
+# List objects in a bucket
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 ls s3://my-bucket
+
+# Download a file
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 cp s3://my-bucket/README.md README-copy.md
+
+# Delete a file
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 rm s3://my-bucket/README.md
+
+# Delete a bucket (must be empty first)
+aws --profile 8fs --endpoint-url http://localhost:8080 s3 rb s3://my-bucket
+```
+
+For more detailed AWS CLI integration instructions, see [AWS_CLI_INTEGRATION.md](./docs/AWS_CLI_INTEGRATION.md).
+
 ### Quick Python Example
 
 ```python
