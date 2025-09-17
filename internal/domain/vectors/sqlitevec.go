@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 
+	vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
 
@@ -28,17 +28,15 @@ func (n *noopLogger) Error(string, ...interface{}) {}
 
 // SQLiteVecConfig carries construction parameters.
 type SQLiteVecConfig struct {
-	Path            string
-	Dimension       int  // requested / primary dimension (API-level)
-	EnableExtension bool // attempt to load vec0 extension
+	Path      string
+	Dimension int // requested / primary dimension (API-level)
 }
 
 // SQLiteVecStorage provides sqlite-vec backed vector storage
 type SQLiteVecStorage struct {
-	db       *sql.DB
-	cfg      SQLiteVecConfig
-	logger   Logger
-	fallback bool // true if vec extension not loaded
+	db     *sql.DB
+	cfg    SQLiteVecConfig
+	logger Logger
 }
 
 // NewSQLiteVecStorage creates a new sqlite-vec storage instance
@@ -73,86 +71,36 @@ func NewSQLiteVecStorage(cfg SQLiteVecConfig, logger Logger) (*SQLiteVecStorage,
 
 // initSchema creates the necessary tables and loads sqlite-vec extension
 func (s *SQLiteVecStorage) initSchema() error {
-	// Try to load sqlite-vec extension if enabled
-	if s.cfg.EnableExtension {
-		// Try different common paths for the sqlite-vec extension
-		extensionPaths := []string{
-			"vec0",                // System installed
-			"./vec0",              // Local
-			"/usr/lib/vec0",       // Common system path
-			"/usr/local/lib/vec0", // Another common path
-		}
+	// Register the sqlite-vec extension using Go bindings
+	vec.Auto()
 
-		var extensionLoaded bool
-		for _, path := range extensionPaths {
-			if _, err := s.db.Exec(fmt.Sprintf("SELECT load_extension('%s')", path)); err == nil {
-				s.logger.Info("sqlite-vec extension loaded successfully", "path", path)
-				extensionLoaded = true
-				break
-			}
-		}
+	// Test if sqlite-vec is available by trying to create a virtual table
+	testTable := fmt.Sprintf(`
+	CREATE VIRTUAL TABLE IF NOT EXISTS vec_test USING vec0(
+		embedding FLOAT[%d]
+	)`, s.cfg.Dimension)
 
-		if !extensionLoaded {
-			s.logger.Warn("sqlite-vec extension failed to load from all paths; using fallback",
-				"paths", extensionPaths)
-			s.fallback = true
-		}
-	} else {
-		s.logger.Info("sqlite-vec extension disabled via config")
-		s.fallback = true
+	if _, err := s.db.Exec(testTable); err != nil {
+		return fmt.Errorf("sqlite-vec extension not available: %w", err)
 	}
 
-	// Create appropriate table based on extension availability
-	if !s.fallback {
-		// Try to create sqlite-vec virtual table
-		// Note: sqlite-vec supports dynamic dimensions, but we'll use a sensible default
-		createVecTable := fmt.Sprintf(`
-		CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
-			id TEXT PRIMARY KEY,
-			embedding FLOAT[%d],
-			metadata TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`, s.cfg.Dimension)
+	// Clean up test table
+	s.db.Exec("DROP TABLE IF EXISTS vec_test")
+	s.logger.Info("sqlite-vec extension available and working")
 
-		if _, err := s.db.Exec(createVecTable); err != nil {
-			s.logger.Warn("failed to create sqlite-vec table, falling back to standard SQLite", "error", err)
-			s.fallback = true
-		} else {
-			s.logger.Info("sqlite-vec virtual table created successfully", "dimensions", s.cfg.Dimension)
-		}
+	// Create sqlite-vec virtual table
+	createVecTable := fmt.Sprintf(`
+	CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
+		id TEXT PRIMARY KEY,
+		embedding FLOAT[%d],
+		metadata TEXT
+	)`, s.cfg.Dimension)
+
+	if _, err := s.db.Exec(createVecTable); err != nil {
+		return fmt.Errorf("failed to create sqlite-vec table: %w", err)
 	}
 
-	// Create fallback table if extension failed or disabled
-	if s.fallback {
-		createFallbackTable := `
-		CREATE TABLE IF NOT EXISTS embeddings (
-			id TEXT PRIMARY KEY,
-			embedding BLOB,
-			metadata TEXT,
-			dimensions INTEGER,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`
-
-		if _, err := s.db.Exec(createFallbackTable); err != nil {
-			return fmt.Errorf("failed to create fallback embeddings table: %w", err)
-		}
-
-		// Create indices for better performance
-		indices := []string{
-			"CREATE INDEX IF NOT EXISTS idx_embeddings_created_at ON embeddings(created_at)",
-			"CREATE INDEX IF NOT EXISTS idx_embeddings_dimensions ON embeddings(dimensions)",
-		}
-
-		for _, idx := range indices {
-			if _, err := s.db.Exec(idx); err != nil {
-				// Log but don't fail - some indices might not be applicable to current schema
-				s.logger.Warn("failed to create index", "error", err, "index", idx)
-			}
-		}
-
-		s.logger.Info("fallback SQLite table created successfully")
-	}
-
+	s.logger.Info("sqlite-vec virtual table created successfully", "dimensions", s.cfg.Dimension)
 	return nil
 }
 
@@ -164,8 +112,8 @@ func (s *SQLiteVecStorage) Store(vector *Vector) error {
 		return fmt.Errorf("invalid vector: %w", err)
 	}
 
-	// Convert embedding to suitable format
-	embeddingData, err := serializeEmbedding(vector.Embedding)
+	// Use sqlite-vec binary format
+	embeddingData, err := serializeEmbeddingBinary(vector.Embedding)
 	if err != nil {
 		return fmt.Errorf("failed to serialize embedding: %w", err)
 	}
@@ -176,33 +124,21 @@ func (s *SQLiteVecStorage) Store(vector *Vector) error {
 		return fmt.Errorf("failed to serialize metadata: %w", err)
 	}
 
-	var query string
-	var args []interface{}
+	// Use sqlite-vec optimized storage
+	query := `
+	INSERT OR REPLACE INTO embeddings (id, embedding, metadata)
+	VALUES (?, ?, ?)`
 
-	if !s.fallback {
-		// Use sqlite-vec optimized storage
-		query = `
-		INSERT OR REPLACE INTO embeddings (id, embedding, metadata, created_at)
-		VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
-		args = []interface{}{vector.ID, embeddingData, string(metadataJSON)}
-	} else {
-		// Use fallback storage with dimension tracking
-		query = `
-		INSERT OR REPLACE INTO embeddings (id, embedding, metadata, dimensions, created_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
-		args = []interface{}{vector.ID, embeddingData, string(metadataJSON), len(vector.Embedding)}
-	}
-
-	_, err = s.db.Exec(query, args...)
+	_, err = s.db.Exec(query, vector.ID, embeddingData, string(metadataJSON))
 	if err != nil {
 		return fmt.Errorf("failed to store vector: %w", err)
 	}
 
-	s.logger.Info("vector stored successfully", "id", vector.ID, "dimensions", len(vector.Embedding), "fallback", s.fallback)
+	s.logger.Info("vector stored successfully", "id", vector.ID, "dimensions", len(vector.Embedding))
 	return nil
 }
 
-// Search performs vector similarity search
+// Search performs vector similarity search using sqlite-vec
 func (s *SQLiteVecStorage) Search(query []float64, topK int) ([]SearchResult, error) {
 	// Validate query vector
 	vm := NewVectorMath()
@@ -214,31 +150,20 @@ func (s *SQLiteVecStorage) Search(query []float64, topK int) ([]SearchResult, er
 		topK = 10 // Default
 	}
 
-	// Try optimized sqlite-vec search first
-	if !s.fallback {
-		results, err := s.vectorSearch(query, topK)
-		if err == nil {
-			return results, nil
-		}
-		s.logger.Warn("sqlite-vec search failed, falling back to linear search", "error", err)
-	}
-
-	// Fallback to linear search
-	return s.linearSearch(query, topK)
+	return s.vectorSearch(query, topK)
 }
 
 // vectorSearch uses sqlite-vec extension for optimized search
 func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResult, error) {
-	// Serialize query vector for sqlite-vec
-	queryData, err := serializeEmbedding(query)
+	// Serialize query vector for sqlite-vec using binary format
+	queryData, err := serializeEmbeddingBinary(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize query vector: %w", err)
 	}
 
-	// sqlite-vec query syntax - this uses the vec0 extension's similarity search
-	// The exact syntax depends on the sqlite-vec version, but typically uses MATCH
+	// sqlite-vec query syntax - we don't need to retrieve the embedding data
 	sqlQuery := `
-	SELECT id, embedding, metadata,
+	SELECT id, metadata,
 		   vec_distance_cosine(embedding, ?) as distance
 	FROM embeddings
 	ORDER BY distance ASC
@@ -246,8 +171,7 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 
 	rows, err := s.db.Query(sqlQuery, queryData, topK)
 	if err != nil {
-		// If the vec_distance_cosine function doesn't exist, sqlite-vec isn't fully loaded
-		return nil, fmt.Errorf("sqlite-vec query failed (extension may not be loaded): %w", err)
+		return nil, fmt.Errorf("sqlite-vec query failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -255,18 +179,11 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 
 	for rows.Next() {
 		var id, metadataJSON string
-		var embeddingData []byte
 		var distance float64
 
-		err := rows.Scan(&id, &embeddingData, &metadataJSON, &distance)
+		err := rows.Scan(&id, &metadataJSON, &distance)
 		if err != nil {
 			s.logger.Warn("failed to scan sqlite-vec result", "error", err)
-			continue
-		}
-
-		embedding, err := deserializeEmbedding(embeddingData)
-		if err != nil {
-			s.logger.Warn("failed to deserialize embedding", "id", id, "error", err)
 			continue
 		}
 
@@ -285,7 +202,7 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 
 		vector := &Vector{
 			ID:        id,
-			Embedding: embedding,
+			Embedding: nil, // Not fetched in sqlite-vec mode for efficiency
 			Metadata:  metadata,
 		}
 
@@ -299,104 +216,6 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 	return results, nil
 }
 
-// linearSearch provides fallback linear search when vec extension is not available
-func (s *SQLiteVecStorage) linearSearch(query []float64, topK int) ([]SearchResult, error) {
-	queryDim := len(query)
-
-	// Get all vectors, optionally filtering by dimension for better performance
-	var rows *sql.Rows
-	var err error
-
-	if s.fallback {
-		// In fallback mode, we can filter by dimension to skip incompatible vectors
-		rows, err = s.db.Query("SELECT id, embedding, metadata, dimensions FROM embeddings WHERE dimensions = ?", queryDim)
-	} else {
-		// In non-fallback mode, try all vectors (dimensions tracked separately)
-		rows, err = s.db.Query("SELECT id, embedding, metadata FROM embeddings")
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to query vectors: %w", err)
-	}
-	defer rows.Close()
-
-	vm := NewVectorMath()
-	var allResults []SearchResult
-
-	for rows.Next() {
-		var id, metadataJSON string
-		var embeddingData []byte
-		var storedDim *int
-
-		// Scan with or without dimensions column
-		if s.fallback {
-			err = rows.Scan(&id, &embeddingData, &metadataJSON, &storedDim)
-		} else {
-			err = rows.Scan(&id, &embeddingData, &metadataJSON)
-		}
-
-		if err != nil {
-			s.logger.Warn("failed to scan vector row", "id", id, "error", err)
-			continue
-		}
-
-		embedding, err := deserializeEmbedding(embeddingData)
-		if err != nil {
-			s.logger.Warn("failed to deserialize embedding", "id", id, "error", err)
-			continue
-		}
-
-		// Skip vectors with incompatible dimensions
-		if len(embedding) != queryDim {
-			// Note: vectors with different dimensions are automatically skipped
-			continue
-		}
-
-		// Parse metadata
-		var metadata map[string]interface{}
-		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
-			s.logger.Warn("corrupted metadata, using fallback", "id", id, "error", err)
-			metadata = map[string]interface{}{"raw": metadataJSON}
-		}
-
-		// Calculate similarity
-		similarity, err := vm.CosineSimilarity(query, embedding)
-		if err != nil {
-			s.logger.Warn("failed to calculate similarity", "id", id, "error", err)
-			continue
-		}
-
-		vector := &Vector{
-			ID:        id,
-			Embedding: embedding,
-			Metadata:  metadata,
-		}
-
-		allResults = append(allResults, SearchResult{
-			Vector: vector,
-			Score:  similarity,
-		})
-	}
-
-	// Sort by similarity (highest first)
-	sort.Slice(allResults, func(i, j int) bool {
-		return allResults[i].Score > allResults[j].Score
-	})
-
-	// Return top K results
-	if topK > len(allResults) {
-		topK = len(allResults)
-	}
-
-	results := allResults[:topK]
-	s.logger.Info("linear search completed",
-		"query_dims", queryDim,
-		"total_candidates", len(allResults),
-		"returned", len(results))
-
-	return results, nil
-}
-
 // Close closes the database connection
 func (s *SQLiteVecStorage) Close() error {
 	if s.db != nil {
@@ -407,16 +226,14 @@ func (s *SQLiteVecStorage) Close() error {
 
 // Helper functions for embedding serialization
 
-// serializeEmbedding converts float64 slice to bytes for storage
-func serializeEmbedding(embedding []float64) ([]byte, error) {
-	// For sqlite-vec compatibility, we'll use JSON for now
-	// In production with actual sqlite-vec, this would be optimized binary format
-	return json.Marshal(embedding)
-}
+// serializeEmbeddingBinary converts float64 slice to binary format for sqlite-vec
+func serializeEmbeddingBinary(embedding []float64) ([]byte, error) {
+	// Convert float64 to float32 for sqlite-vec
+	float32Vec := make([]float32, len(embedding))
+	for i, v := range embedding {
+		float32Vec[i] = float32(v)
+	}
 
-// deserializeEmbedding converts bytes back to float64 slice
-func deserializeEmbedding(data []byte) ([]float64, error) {
-	var embedding []float64
-	err := json.Unmarshal(data, &embedding)
-	return embedding, err
+	// Use sqlite-vec-go-bindings serialization
+	return vec.SerializeFloat32(float32Vec)
 }

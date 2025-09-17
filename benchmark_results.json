@@ -1,0 +1,36 @@
+{
+  "config": {
+    "VectorCount": 5,
+    "QueryCount": 3,
+    "Dimensions": 384,
+    "TopK": 10,
+    "DatasetType": "realistic",
+    "RandomSeed": 1758064100794125000,
+    "EnableProgressLog": true
+  },
+  "insert_metrics": {
+    "total_time_ms": 5377250,
+    "average_time_ms": 1075450,
+    "throughput_per_sec": 929.843321400344,
+    "vectors_inserted": 5
+  },
+  "search_metrics": {
+    "total_time_ms": 355417,
+    "average_time_ms": 118472,
+    "throughput_per_sec": 8440.789270068679,
+    "queries_executed": 3,
+    "average_results_returned": 5,
+    "average_accuracy": 0.95
+  },
+  "overall_metrics": {
+    "database_size_bytes": 1048576,
+    "memory_usage_bytes": 0,
+    "total_time_ms": 5797958
+  },
+  "system_info": {
+    "platform": "golang",
+    "sqlite_version": "",
+    "vector_engine": "sqlite-vec"
+  },
+  "timestamp": "2025-09-17T00:08:20.79863+01:00"
+}

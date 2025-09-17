@@ -85,10 +85,9 @@ type LoggerConfig struct {
 
 // VectorConfig holds vector storage related configuration
 type VectorConfig struct {
-	Enabled         bool
-	DBPath          string
-	EnableExtension bool
-	Dimension       int
+	Enabled   bool
+	DBPath    string
+	Dimension int
 }
 
 // Load reads configuration from environment variables with defaults
@@ -155,10 +154,9 @@ func Load() (*Config, error) {
 			Compress:   getEnvOrDefaultBool("LOG_COMPRESS", true),
 		},
 		Vector: VectorConfig{
-			Enabled:         getEnvOrDefaultBool("VECTOR_ENABLED", true),
-			DBPath:          getEnvOrDefault("VECTOR_DB_PATH", "data/vectors.db"),
-			EnableExtension: getEnvOrDefaultBool("VECTOR_ENABLE_EXTENSION", false),
-			Dimension:       getEnvOrDefaultInt("VECTOR_DIMENSION", 384),
+			Enabled:   getEnvOrDefaultBool("VECTOR_ENABLED", true),
+			DBPath:    getEnvOrDefault("VECTOR_DB_PATH", "data/vectors.db"),
+			Dimension: getEnvOrDefaultInt("VECTOR_DIMENSION", 384),
 		},
 	}
 
