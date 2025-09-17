@@ -222,7 +222,7 @@ func TestValidateVector(t *testing.T) {
 			name: "invalid dimensions",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: make([]float64, EmbeddingDim-10),
+				Embedding: make([]float64, MinEmbeddingDim-1), // 2 dimensions, below minimum of 3
 			},
 			wantErr: true,
 		},
