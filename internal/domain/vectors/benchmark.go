@@ -3,7 +3,6 @@ package vectors
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -135,179 +134,21 @@ func (b *Benchmarker) RunBenchmark(config BenchmarkConfig) (*BenchmarkResult, er
 
 // generateSampleData creates vectors and queries based on config
 func (b *Benchmarker) generateSampleData(config BenchmarkConfig) ([]*Vector, [][]float64) {
-	switch config.DatasetType {
-	case "clustered":
-		return b.generateClusteredData(config)
-	case "realistic":
-		return b.generateRealisticData(config)
-	default: // "random"
-		return b.generateRandomData(config)
+	dataGen := NewDataGenerator(b.rand.Int63())
+	
+	vectorConfig := GenerateVectorsConfig{
+		Count:      config.VectorCount,
+		Dimensions: config.Dimensions,
+		Type:       config.DatasetType,
 	}
-}
-
-// generateRandomData creates completely random vectors
-func (b *Benchmarker) generateRandomData(config BenchmarkConfig) ([]*Vector, [][]float64) {
-	vectors := make([]*Vector, config.VectorCount)
-	queries := make([][]float64, config.QueryCount)
-
-	// Generate random vectors
-	for i := 0; i < config.VectorCount; i++ {
-		embedding := make([]float64, config.Dimensions)
-		for j := 0; j < config.Dimensions; j++ {
-			embedding[j] = b.rand.NormFloat64() // Normal distribution
-		}
-
-		vectors[i] = &Vector{
-			ID:        fmt.Sprintf("vec_%d", i),
-			Embedding: b.normalizeVector(embedding),
-			Metadata: map[string]interface{}{
-				"type":       "random",
-				"cluster_id": i % 10, // Fake clustering for metadata filtering
-				"created_at": time.Now().Add(-time.Duration(i) * time.Second).Unix(),
-			},
-		}
+	
+	queryConfig := GenerateQueriesConfig{
+		Count:      config.QueryCount,
+		Dimensions: config.Dimensions,
+		Type:       config.DatasetType,
 	}
-
-	// Generate random queries
-	for i := 0; i < config.QueryCount; i++ {
-		embedding := make([]float64, config.Dimensions)
-		for j := 0; j < config.Dimensions; j++ {
-			embedding[j] = b.rand.NormFloat64()
-		}
-		queries[i] = b.normalizeVector(embedding)
-	}
-
-	return vectors, queries
-}
-
-// generateClusteredData creates vectors in distinct clusters
-func (b *Benchmarker) generateClusteredData(config BenchmarkConfig) ([]*Vector, [][]float64) {
-	vectors := make([]*Vector, config.VectorCount)
-	queries := make([][]float64, config.QueryCount)
-
-	numClusters := 5
-	clusterCenters := make([][]float64, numClusters)
-
-	// Generate cluster centers
-	for i := 0; i < numClusters; i++ {
-		center := make([]float64, config.Dimensions)
-		for j := 0; j < config.Dimensions; j++ {
-			center[j] = b.rand.NormFloat64() * 2 // Wider spread for centers
-		}
-		clusterCenters[i] = b.normalizeVector(center)
-	}
-
-	// Generate vectors around cluster centers
-	for i := 0; i < config.VectorCount; i++ {
-		clusterID := i % numClusters
-		center := clusterCenters[clusterID]
-
-		embedding := make([]float64, config.Dimensions)
-		for j := 0; j < config.Dimensions; j++ {
-			// Add noise around cluster center
-			embedding[j] = center[j] + b.rand.NormFloat64()*0.1
-		}
-
-		vectors[i] = &Vector{
-			ID:        fmt.Sprintf("clustered_vec_%d", i),
-			Embedding: b.normalizeVector(embedding),
-			Metadata: map[string]interface{}{
-				"type":       "clustered",
-				"cluster_id": clusterID,
-				"topic":      fmt.Sprintf("topic_%d", clusterID),
-			},
-		}
-	}
-
-	// Generate queries that should find clusters
-	for i := 0; i < config.QueryCount; i++ {
-		clusterID := i % numClusters
-		center := clusterCenters[clusterID]
-
-		embedding := make([]float64, config.Dimensions)
-		for j := 0; j < config.Dimensions; j++ {
-			// Query slightly off-center to test similarity
-			embedding[j] = center[j] + b.rand.NormFloat64()*0.05
-		}
-		queries[i] = b.normalizeVector(embedding)
-	}
-
-	return vectors, queries
-}
-
-// generateRealisticData simulates realistic text embeddings
-func (b *Benchmarker) generateRealisticData(config BenchmarkConfig) ([]*Vector, [][]float64) {
-	// This simulates text embeddings like you'd get from OpenAI, Sentence-BERT, etc.
-	vectors := make([]*Vector, config.VectorCount)
-	queries := make([][]float64, config.QueryCount)
-
-	// Realistic embedding patterns (sparse with some dominant dimensions)
-	dominantDims := config.Dimensions / 10 // ~10% of dimensions are "important"
-
-	for i := 0; i < config.VectorCount; i++ {
-		embedding := make([]float64, config.Dimensions)
-
-		// Most dimensions are near-zero
-		for j := 0; j < config.Dimensions; j++ {
-			embedding[j] = b.rand.NormFloat64() * 0.1
-		}
-
-		// Some dimensions have stronger signals
-		for k := 0; k < dominantDims; k++ {
-			dimIndex := b.rand.Intn(config.Dimensions)
-			embedding[dimIndex] += b.rand.NormFloat64() * 0.8
-		}
-
-		vectors[i] = &Vector{
-			ID:        fmt.Sprintf("doc_%d", i),
-			Embedding: b.normalizeVector(embedding),
-			Metadata: map[string]interface{}{
-				"type":       "document",
-				"category":   []string{"tech", "science", "business", "health"}[i%4],
-				"word_count": 100 + b.rand.Intn(1000),
-				"language":   "en",
-				"created_at": time.Now().Add(-time.Duration(i) * time.Hour).Unix(),
-			},
-		}
-	}
-
-	// Generate realistic queries
-	for i := 0; i < config.QueryCount; i++ {
-		embedding := make([]float64, config.Dimensions)
-
-		// Similar pattern to documents but with variation
-		for j := 0; j < config.Dimensions; j++ {
-			embedding[j] = b.rand.NormFloat64() * 0.15
-		}
-
-		for k := 0; k < dominantDims; k++ {
-			dimIndex := b.rand.Intn(config.Dimensions)
-			embedding[dimIndex] += b.rand.NormFloat64() * 0.6
-		}
-
-		queries[i] = b.normalizeVector(embedding)
-	}
-
-	return vectors, queries
-}
-
-// normalizeVector converts vector to unit length
-func (b *Benchmarker) normalizeVector(v []float64) []float64 {
-	var magnitude float64
-	for _, val := range v {
-		magnitude += val * val
-	}
-	magnitude = math.Sqrt(magnitude)
-
-	if magnitude == 0 {
-		return v // Avoid division by zero
-	}
-
-	normalized := make([]float64, len(v))
-	for i, val := range v {
-		normalized[i] = val / magnitude
-	}
-	return normalized
+	
+	return dataGen.GenerateVectorsAndQueries(vectorConfig, queryConfig)
 }
 
 // benchmarkInsertions measures vector insertion performance
