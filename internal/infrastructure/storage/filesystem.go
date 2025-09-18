@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -328,23 +329,62 @@ func (r *filesystemRepository) ListObjects(ctx context.Context, bucket string, o
 		return nil, errors.Wrap(errors.ErrCodeInternalError, "Failed to walk objects", err)
 	}
 
-	// Apply max keys limit
+	// Ensure deterministic lexicographic order by key
+	sort.Slice(objects, func(i, j int) bool { return objects[i].Key < objects[j].Key })
+
+	// Apply marker (skip up to and including marker)
+	if opts.Marker != "" {
+		filtered := make([]storage.ObjectInfo, 0, len(objects))
+		for _, obj := range objects {
+			if obj.Key > opts.Marker { // lexicographic order filtering
+				filtered = append(filtered, obj)
+			}
+		}
+		objects = filtered
+	}
+
+	// Handle delimiter: compute CommonPrefixes and filter objects under those prefixes
+	commonSet := map[string]struct{}{}
+	if opts.Delimiter != "" {
+		filtered := make([]storage.ObjectInfo, 0, len(objects))
+		for _, obj := range objects {
+			rel := obj.Key
+			if opts.Prefix != "" && strings.HasPrefix(rel, opts.Prefix) {
+				rel = strings.TrimPrefix(rel, opts.Prefix)
+			}
+			if idx := strings.Index(rel, opts.Delimiter); idx >= 0 {
+				cp := rel[:idx+len(opts.Delimiter)]
+				if opts.Prefix != "" {
+					cp = opts.Prefix + cp
+				}
+				commonSet[cp] = struct{}{}
+				continue
+			}
+			filtered = append(filtered, obj)
+		}
+		objects = filtered
+	}
+
+	// Apply max keys limit (objects only)
 	maxKeys := opts.MaxKeys
 	if maxKeys <= 0 {
 		maxKeys = 1000 // Default limit
 	}
 
 	result := &storage.ListResult{
-		Objects:        objects,
-		CommonPrefixes: []string{}, // TODO: Implement common prefixes for delimiter
+		CommonPrefixes: make([]string, 0, len(commonSet)),
 		IsTruncated:    len(objects) > maxKeys,
 	}
+	for cp := range commonSet {
+		result.CommonPrefixes = append(result.CommonPrefixes, cp)
+	}
 
-	if result.IsTruncated {
+	// Always limit the number of objects returned
+	if len(objects) > maxKeys {
 		result.Objects = objects[:maxKeys]
-		if len(objects) > maxKeys {
-			result.NextMarker = objects[maxKeys].Key
-		}
+		result.NextMarker = result.Objects[len(result.Objects)-1].Key
+	} else {
+		result.Objects = objects
 	}
 
 	return result, nil
