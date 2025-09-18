@@ -86,7 +86,7 @@ func TestS3_List_Delimiter_CommonPrefixes_And_Marker(t *testing.T) {
 
 	if next != "" {
 		w = httptest.NewRecorder()
-		req, _ = http.NewRequest("GET", "/delim-bkt?marker="+next+"~", nil)
+		req, _ = http.NewRequest("GET", "/delim-bkt?marker="+next, nil)
 		req.Header.Set("Authorization", authHeader(key))
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
