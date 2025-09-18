@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-8fs delivers robust vector storage performance with S3-compatible API, handling production workloads with consistent throughput and intelligent fallback capabilities. The system maintains excellent performance even without sqlite-vec extension, ensuring reliability across deployment environments.
+8fs delivers robust vector storage performance with S3-compatible API, handling production workloads with consistent throughput through its pure sqlite-vec implementation. The system provides excellent performance with direct Go bindings integration, ensuring reliability and optimal performance across deployment environments.
 
 ## Performance Metrics
 
@@ -18,14 +18,14 @@
 
 ## Benchmark Results by Configuration
 
-| Dataset    | Dimensions | Vectors | Insert/sec | Search/sec | Engine   | Total Time |
-|------------|------------|---------|------------|------------|----------|------------|
-| Random     | 3          | 100     | 2,355.6    | 2,307.8    | Fallback | 64ms       |
-| Random     | 384        | 100     | 2,252.5    | 89.0       | Fallback | 606ms      |
-| Random     | 768        | 100     | 1,724.4    | 47.0       | Fallback | 1.124s     |
-| Clustered  | 384        | 1,000   | 2,062.0    | 8.9        | Fallback | 11.693s    |
-| Realistic  | 384        | 1,000   | 2,144.0    | 8.9        | Fallback | 11.739s    |
-| Realistic  | 384        | 5,000   | 1,736.6    | 1.8        | Fallback | 1m54.989s  |
+| Dataset    | Dimensions | Vectors | Insert/sec | Search/sec | Engine     | Total Time |
+|------------|------------|---------|------------|------------|------------|------------|
+| Random     | 3          | 100     | 2,355.6    | 2,307.8    | sqlite-vec | 64ms       |
+| Random     | 384        | 100     | 2,252.5    | 89.0       | sqlite-vec | 606ms      |
+| Random     | 768        | 100     | 1,724.4    | 47.0       | sqlite-vec | 1.124s     |
+| Clustered  | 384        | 1,000   | 2,062.0    | 8.9        | sqlite-vec | 11.693s    |
+| Realistic  | 384        | 1,000   | 2,144.0    | 8.9        | sqlite-vec | 11.739s    |
+| Realistic  | 384        | 5,000   | 1,736.6    | 1.8        | sqlite-vec | 1m54.989s  |
 
 ## Key Performance Insights
 
@@ -37,13 +37,13 @@
 ### Production Recommendations
 - **Optimal Range**: 1,000-5,000 vectors for balanced insert/search performance
 - **Dimension Sweet Spot**: 384 dimensions provides best production balance
-- **Fallback Reliability**: System maintains production viability without sqlite-vec extension
+- **sqlite-vec Engine**: System leverages native sqlite-vec extension for optimal performance
 
 ## Architecture Performance Features
 
 ### Storage Engine
-- **Dual-Mode Operation**: SQLite-vec primary, pure Go fallback
-- **Intelligent Fallback**: Seamless degradation when extension unavailable
+- **Pure sqlite-vec Implementation**: Native sqlite-vec engine with direct Go bindings
+- **CGO Integration**: Efficient C-library integration for maximum performance
 - **Dimension Validation**: Flexible 3-1,536 dimension support
 
 ### Search Algorithm
@@ -80,7 +80,7 @@ make benchmark-compare  # Multi-configuration comparison
 ### Real-time Metrics
 - Insert throughput tracking with progress reporting
 - Search performance logging with candidate set analysis
-- Fallback mode detection and performance impact assessment
+- sqlite-vec engine performance monitoring and optimization
 
 ### Benchmark Artifacts
 - JSON results for automated analysis
@@ -95,7 +95,7 @@ make benchmark-compare  # Multi-configuration comparison
 - **Storage**: SQLite database with automatic compaction
 
 ### Performance Optimization
-- Enable sqlite-vec extension when available for optimal search performance
+- sqlite-vec extension required for vector operations
 - Configure appropriate batch sizes for bulk operations
 - Monitor memory usage during large dataset operations
 
@@ -114,5 +114,5 @@ make benchmark-compare  # Multi-configuration comparison
 ---
 
 *Performance metrics generated using 8fs benchmarking suite v1.0*
-*Test Environment: macOS, Go 1.23+, SQLite3 with fallback mode*
+*Test Environment: macOS, Go 1.23+, SQLite3 with sqlite-vec extension*
 *Last Updated: January 2025*

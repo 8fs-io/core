@@ -81,8 +81,8 @@ make generate-random-data
 ### System Metrics
 - **Database Size**: Storage requirements
 - **Memory Usage**: RAM consumption during operations
-- **Engine Mode**: SQLite-vec vs fallback usage
-- **Extension Loading**: Success rate of sqlite-vec extension
+- **Engine Mode**: sqlite-vec native implementation
+- **Extension Loading**: sqlite-vec extension initialization status
 
 ## Benchmark Results Format
 
@@ -112,7 +112,7 @@ Results are saved in JSON format with the following structure:
   "overall_metrics": {
     "total_time_ms": 3000,
     "database_size_bytes": 1048576,
-    "fallback_mode": false,
+    "sqlite_vec_mode": true,
     "extension_loaded": true
   }
 }
@@ -161,22 +161,17 @@ Results are saved in JSON format with the following structure:
 - **Search**: 50-500 queries/sec
 - **Dimensions**: Up to 1536D efficiently
 
-### Fallback Mode  
-- **Insert**: 100-500 vectors/sec
-- **Search**: 10-100 queries/sec (depends on dataset size)
-- **Dimensions**: All dimensions supported
-
 *Note: Performance varies significantly based on hardware, dataset characteristics, and system load.*
 
 ## Troubleshooting
 
 ### SQLite-vec Extension Not Loading
 ```
-WARN Extension loading failed, using fallback mode
+ERROR Extension loading failed
 ```
 - **Cause**: sqlite-vec extension not installed or incompatible
-- **Solution**: Use fallback mode (automatic) or install extension
-- **Impact**: Reduced search performance, increased memory usage
+- **Solution**: Install sqlite-vec extension with CGO support
+- **Requirements**: Go 1.23+, CGO enabled, compatible system libraries
 
 ### Low Performance
 ```

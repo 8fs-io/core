@@ -4,10 +4,34 @@
 
 **8fs is the first S3-compatible storage server with built-in vector storage for AI developers.**
 
-Not a MinIO clone—8fs unifies object storage and vector embed## 🗺 Roadmap / Next Steps
+Not a MinIO clone—8fs unifies object storage and vector embeddings in one lightweight binary for local AI labs, from laptops to Raspberry Pi clusters.
+
+> *S3 + vector storage in one <50MB binary—perfect for indie AI workflows.*
+
+See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadmap.
+
+> **Go module path:** `github.com/8fs-io/core`
+
+## 🆕 Recent Changes
+
+- **Production-Ready Vector Storage:**
+  - Pure SQLite-vec implementation with direct Go bindings
+  - Flexible dimension validation (3-1536 dimensions) for development and production
+  - Comprehensive benchmarking suite with performance metrics
+  - **Performance**: 1,700+ vec/sec insert, consistent search across dataset sizes
+- **Performance Validation:**
+  - Published performance metrics: [PERFORMANCE.md](./PERFORMANCE.md)
+  - Automated benchmarking tools with comparative analysis
+  - Production-scale testing up to 5,000 vectors with 384 dimensions
+- **Robust Architecture:**
+  - Native sqlite-vec extension integration with CGO
+  - Comprehensive error handling and logging throughout vector operations
+  - Memory-efficient cosine similarity search with NaN/Inf protection
+
+## 🗺 Roadmap / Next Steps
 
 - **Vector storage**
-  - [x] Enhanced SQLite-vec implementation with intelligent fallback
+  - [x] Pure SQLite-vec implementation with direct Go bindings
   - [x] Flexible dimension validation (3-1536 range) 
   - [x] Comprehensive benchmarking suite with performance metrics
   - [x] Production-scale performance validation and published metrics
@@ -20,30 +44,9 @@ Not a MinIO clone—8fs unifies object storage and vector embed## 🗺 Roadmap /
   - [ ] Multi-tenant support: Tenant isolation and management
   - [ ] Web UI: Dashboard for storage management
   - [ ] Enhanced backends: Additional storage drivers
-  - [ ] Advanced features: Versioning, lifecycle policieshtweight binary for local AI labs, from laptops to Raspberry Pi clusters.
+  - [ ] Advanced features: Versioning, lifecycle policies
 
-> *S3 + vector storage in one <50MB binary—perfect for indie AI workflows.*
-
-See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadmap.
-
-> **Go module path:** `github.com/8fs-io/core`
-
-## 🆕 Recent Changes
-
-- **Production-Ready Vector Storage:**
-  - Enhanced SQLite-vec implementation with intelligent fallback system
-  - Flexible dimension validation (3-1536 dimensions) for development and production
-  - Comprehensive benchmarking suite with performance metrics
-  - **Performance**: 1,700+ vec/sec insert, consistent search across dataset sizes
-- **Performance Validation:**
-  - Published performance metrics: [PERFORMANCE.md](./PERFORMANCE.md)
-  - Automated benchmarking tools with comparative analysis
-  - Production-scale testing up to 5,000 vectors with 384 dimensions
-- **Robust Architecture:**
-  - Intelligent sqlite-vec extension loading with multiple fallback paths
-  - Comprehensive error handling and logging throughout vector operations
-  - Memory-efficient cosine similarity search with NaN/Inf protection
-
+---
 
 **8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture and production-ready deployment options.  
 Perfect for developers who want a simple, self-hosted storage solution.
@@ -231,7 +234,7 @@ When running with `docker-compose --profile monitoring up -d`:
 - **Insert Performance**: 1,700+ vectors/second (production scale)
 - **Search Performance**: 1.8-8.9 queries/second (depending on dataset size)
 - **Dimension Support**: 3-1,536 dimensions with flexible validation
-- **Fallback Reliability**: Full functionality even without sqlite-vec extension
+- **sqlite-vec Engine**: High-performance vector operations with native C bindings
 
 #### Benchmark Results
 | Dataset Size | Dimensions | Insert/sec | Search/sec | Total Time |
@@ -255,9 +258,9 @@ For detailed performance analysis, see [PERFORMANCE.md](./PERFORMANCE.md).
 ## � Roadmap / Next Steps
 
 - **Vector storage**
-  - [ ] Add explicit test coverage for fallback (extension-disabled) path
+  - [ ] Add enhanced test coverage for sqlite-vec integration
   - [ ] Optimize linear search sort (replace bubble sort with sort.Slice)
-  - [ ] Document vector config, fallback, and logging in detail
+  - [ ] Document vector config, sqlite-vec setup, and logging in detail
   - [ ] Add Prometheus metrics for vector queries (counters, histograms)
 - **S3 compatibility**
   - [ ] Port/restore S3 compatibility tests using new router and DI

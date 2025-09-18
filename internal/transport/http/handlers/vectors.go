@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/8fs-io/core/internal/container"
 	"github.com/8fs-io/core/internal/domain/vectors"
@@ -81,11 +81,11 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Store the vector
 	if err := h.storage.Store(vector); err != nil {
 		// Check for dimension mismatch errors (client errors)
-		errorMsg := err.Error()
-		if strings.Contains(errorMsg, "Dimension mismatch") {
+		var dimErr *vectors.DimensionMismatchError
+		if errors.As(err, &dimErr) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Failed to store vector",
-				"details": errorMsg,
+				"error":   "Dimension mismatch",
+				"details": dimErr.Error(),
 			})
 			return
 		}
@@ -93,7 +93,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		// Other errors are internal server errors
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to store vector",
-			"details": errorMsg,
+			"details": err.Error(),
 		})
 		return
 	}

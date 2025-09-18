@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -376,14 +377,18 @@ func (b *Benchmarker) benchmarkSearches(queries [][]float64, topK int, logProgre
 		ThroughputPerSec: float64(successful) / totalTime.Seconds(),
 		QueriesExecuted:  successful,
 		AverageResults:   float64(totalResults) / float64(successful),
-		AverageAccuracy:  0.95, // Placeholder - would need ground truth for real accuracy
+		AverageAccuracy:  0.0, // Placeholder - would need ground truth for real accuracy
 	}, nil
 }
 
 // estimateDatabaseSize returns approximate database size
 func (b *Benchmarker) estimateDatabaseSize() int64 {
-	// This is a rough estimate - would need actual file stat in production
-	return 1024 * 1024 // Placeholder: 1MB
+	fi, err := os.Stat(b.storage.cfg.Path)
+	if err != nil {
+		b.logger.Warn("failed to get db size", "path", b.storage.cfg.Path, "err", err)
+		return 0
+	}
+	return fi.Size()
 }
 
 // getEngineType returns the vector engine type being used

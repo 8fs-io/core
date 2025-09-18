@@ -10,6 +10,28 @@ import (
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
 
+// Error types for better error handling
+var (
+	ErrDimensionMismatch = errors.New("dimension mismatch")
+	ErrInvalidVector     = errors.New("invalid vector")
+	ErrExtensionUnavailable = errors.New("sqlite-vec extension unavailable")
+)
+
+// DimensionMismatchError provides detailed dimension mismatch information
+type DimensionMismatchError struct {
+	Expected int
+	Actual   int
+}
+
+func (e *DimensionMismatchError) Error() string {
+	return fmt.Sprintf("dimension mismatch: vector has %d dimensions, table configured for %d", 
+		e.Actual, e.Expected)
+}
+
+func (e *DimensionMismatchError) Is(target error) bool {
+	return target == ErrDimensionMismatch
+}
+
 // Logger is a minimal interface to allow structured logging without
 // importing a concrete logging package here. The real application logger
 // should satisfy this.
@@ -110,6 +132,14 @@ func (s *SQLiteVecStorage) Store(vector *Vector) error {
 	vm := NewVectorMath()
 	if err := vm.ValidateVector(vector); err != nil {
 		return fmt.Errorf("invalid vector: %w", err)
+	}
+
+	// Check dimension matches the table configuration specifically
+	if len(vector.Embedding) != s.cfg.Dimension {
+		return &DimensionMismatchError{
+			Expected: s.cfg.Dimension,
+			Actual:   len(vector.Embedding),
+		}
 	}
 
 	// Use sqlite-vec binary format

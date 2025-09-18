@@ -84,9 +84,11 @@ func TestVectorHandlerIntegration(t *testing.T) {
 
 		if storeResp["id"] != "test-doc-1" {
 			t.Errorf("Expected ID 'test-doc-1', got %v", storeResp["id"])
-			if s, ok := storeResp["success"].(bool); !ok || !s {
-				// success flag missing or false
-			}
+		}
+		
+		// Check success flag
+		if s, ok := storeResp["success"].(bool); !ok || !s {
+			t.Errorf("Expected 'success' flag to be true, got %v (ok: %v)", storeResp["success"], ok)
 		}
 
 		// Search for similar vectors

@@ -130,7 +130,7 @@ func runComparativeBenchmarks(dbPath, output string, logger vectors.Logger, clea
 	results := make([]*vectors.BenchmarkResult, 0, len(configs))
 
 	for i, config := range configs {
-		fmt.Printf("📊 Running benchmark %d/%d: %s dataset, %dd vectors, %d vectors, %d queries\n",
+		fmt.Printf("📊 Running benchmark %d/%d: %s dataset, %d dimensions, %d vectors, %d queries\n",
 			i+1, len(configs), config.DatasetType, config.Dimensions, config.VectorCount, config.QueryCount)
 
 		// Use different database for each test
