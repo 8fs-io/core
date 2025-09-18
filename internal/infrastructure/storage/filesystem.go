@@ -378,6 +378,7 @@ func (r *filesystemRepository) ListObjects(ctx context.Context, bucket string, o
 	for cp := range commonSet {
 		result.CommonPrefixes = append(result.CommonPrefixes, cp)
 	}
+	sort.Strings(result.CommonPrefixes)
 
 	// Always limit the number of objects returned
 	if len(objects) > maxKeys {
