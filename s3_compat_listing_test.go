@@ -46,7 +46,8 @@ func TestS3_List_Delimiter_CommonPrefixes_And_Marker(t *testing.T) {
 	assert.Equal(t, 200, w.Code)
 	var list handlers.ListBucketResult
 	parseXML(t, w.Body.Bytes(), &list)
-	// Objects are not filtered out by delimiter in current implementation
+	// With a delimiter, objects that are rolled up into a common prefix should not be returned, so Contents should be empty.
+	assert.Empty(t, list.Contents)
 	var cps []string
 	for _, p := range list.CommonPrefixes {
 		cps = append(cps, p.Prefix)
