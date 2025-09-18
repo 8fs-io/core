@@ -94,10 +94,11 @@ func NewSQLiteVecStorage(cfg SQLiteVecConfig, logger Logger) (*SQLiteVecStorage,
 // initSchema creates the necessary tables and loads sqlite-vec extension
 func (s *SQLiteVecStorage) initSchema() error {
 	// Register the sqlite-vec extension using Go bindings
-	// Note: vec.Auto() doesn't return an error, registration is best-effort
+	// vec.Auto() registers the extension globally but doesn't return an error
+	// (it's a wrapper around sqlite3_auto_extension which is best-effort)
 	vec.Auto()
 
-	// Test if sqlite-vec is available by trying to create a virtual table
+	// Test if sqlite-vec extension loaded successfully by trying to create a virtual table
 	testTable := fmt.Sprintf(`
 	CREATE VIRTUAL TABLE IF NOT EXISTS vec_test USING vec0(
 		embedding FLOAT[%d]

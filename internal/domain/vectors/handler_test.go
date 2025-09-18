@@ -86,9 +86,13 @@ func TestVectorHandlerIntegration(t *testing.T) {
 			t.Errorf("Expected ID 'test-doc-1', got %v", storeResp["id"])
 		}
 
-		// Check success flag
-		if s, ok := storeResp["success"].(bool); !ok || !s {
-			t.Errorf("Expected 'success' flag to be true, got %v (ok: %v)", storeResp["success"], ok)
+		// Check response fields match expected successful response
+		if storeResp["message"] != "Vector stored successfully" {
+			t.Errorf("Expected message 'Vector stored successfully', got %v", storeResp["message"])
+		}
+
+		if dimensions, ok := storeResp["dimensions"].(float64); !ok || int(dimensions) != len(emb) {
+			t.Errorf("Expected dimensions %d, got %v (ok: %v)", len(emb), storeResp["dimensions"], ok)
 		}
 
 		// Search for similar vectors
