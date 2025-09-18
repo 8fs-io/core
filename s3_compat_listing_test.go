@@ -54,7 +54,7 @@ func TestS3_List_Delimiter_CommonPrefixes_And_Marker(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"bar/", "foo/"}, cps)
 
-	// Delimiter with prefix=foo/ -> current implementation still returns objects; verify presence rather than exclusion
+	// Delimiter with prefix=foo/ -> should return only objects under that prefix not matching the delimiter.
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest("GET", "/delim-bkt?prefix=foo/&delimiter=/", nil)
 	req.Header.Set("Authorization", authHeader(key))
@@ -66,7 +66,7 @@ func TestS3_List_Delimiter_CommonPrefixes_And_Marker(t *testing.T) {
 	for _, c := range list.Contents {
 		returned = append(returned, c.Key)
 	}
-	assert.Subset(t, returned, []string{"foo/a.txt", "foo/b.txt"})
+	assert.ElementsMatch(t, []string{"foo/a.txt", "foo/b.txt"}, returned)
 	// CommonPrefixes may be empty when scoped to prefix without deeper subdirs
 
 	// Pagination with max-keys=1 to force truncation and continuation
