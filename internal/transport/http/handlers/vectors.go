@@ -62,7 +62,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "vector storage not initialized"})
 		return
 	}
-	
+
 	var req StoreEmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		status = STATUS_ERROR
@@ -104,7 +104,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Store the vector
 	if err := h.storage.Store(vector); err != nil {
 		status = STATUS_ERROR
-		
+
 		// Check for dimension mismatch errors (client errors)
 		var dimErr *vectors.DimensionMismatchError
 		if errors.As(err, &dimErr) {
@@ -124,8 +124,9 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"id":      req.ID,
+		"message":    "Vector stored successfully",
+		"id":         req.ID,
+		"dimensions": len(req.Embedding),
 	})
 
 }

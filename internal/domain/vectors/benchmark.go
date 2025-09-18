@@ -371,12 +371,21 @@ func (b *Benchmarker) benchmarkSearches(queries [][]float64, topK int, logProgre
 
 	totalTime := time.Since(startTime)
 
+	var avgTime time.Duration
+	var throughput float64
+	var avgResults float64
+	if successful > 0 {
+		avgTime = time.Duration(totalTime.Nanoseconds() / int64(successful))
+		throughput = float64(successful) / totalTime.Seconds()
+		avgResults = float64(totalResults) / float64(successful)
+	}
+
 	return SearchMetrics{
 		TotalTime:        totalTime,
-		AverageTime:      time.Duration(totalTime.Nanoseconds() / int64(successful)),
-		ThroughputPerSec: float64(successful) / totalTime.Seconds(),
+		AverageTime:      avgTime,
+		ThroughputPerSec: throughput,
 		QueriesExecuted:  successful,
-		AverageResults:   float64(totalResults) / float64(successful),
+		AverageResults:   avgResults,
 		AverageAccuracy:  0.0, // Placeholder - would need ground truth for real accuracy
 	}, nil
 }

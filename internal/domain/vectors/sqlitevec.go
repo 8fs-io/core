@@ -12,8 +12,8 @@ import (
 
 // Error types for better error handling
 var (
-	ErrDimensionMismatch = errors.New("dimension mismatch")
-	ErrInvalidVector     = errors.New("invalid vector")
+	ErrDimensionMismatch    = errors.New("dimension mismatch")
+	ErrInvalidVector        = errors.New("invalid vector")
 	ErrExtensionUnavailable = errors.New("sqlite-vec extension unavailable")
 )
 
@@ -24,7 +24,7 @@ type DimensionMismatchError struct {
 }
 
 func (e *DimensionMismatchError) Error() string {
-	return fmt.Sprintf("dimension mismatch: vector has %d dimensions, table configured for %d", 
+	return fmt.Sprintf("dimension mismatch: vector has %d dimensions, table configured for %d",
 		e.Actual, e.Expected)
 }
 
@@ -94,6 +94,7 @@ func NewSQLiteVecStorage(cfg SQLiteVecConfig, logger Logger) (*SQLiteVecStorage,
 // initSchema creates the necessary tables and loads sqlite-vec extension
 func (s *SQLiteVecStorage) initSchema() error {
 	// Register the sqlite-vec extension using Go bindings
+	// Note: vec.Auto() doesn't return an error, registration is best-effort
 	vec.Auto()
 
 	// Test if sqlite-vec is available by trying to create a virtual table
@@ -265,5 +266,9 @@ func serializeEmbeddingBinary(embedding []float64) ([]byte, error) {
 	}
 
 	// Use sqlite-vec-go-bindings serialization
-	return vec.SerializeFloat32(float32Vec)
+	data, err := vec.SerializeFloat32(float32Vec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize embedding to binary: %w", err)
+	}
+	return data, nil
 }

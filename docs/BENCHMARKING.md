@@ -121,7 +121,7 @@ Results are saved in JSON format with the following structure:
 ## Environment Requirements
 
 - **Go**: 1.23+
-- **SQLite**: 3.38+ with sqlite-vec extension (optional)
+- **SQLite**: 3.38+ with sqlite-vec extension (required)
 - **Memory**: Minimum 512MB available RAM
 - **Storage**: 100MB+ free space for test databases
 

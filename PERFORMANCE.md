@@ -62,7 +62,7 @@
 ```bash
 make benchmark-quick    # Fast validation (100 vectors)
 make benchmark-realistic # Production simulation (1,000 vectors)
-make benchmark-scale     # Large-scale testing (5,000 vectors)
+make benchmark-large     # Large-scale testing (5,000 vectors)
 ```
 
 ### Comparative Analysis

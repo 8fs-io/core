@@ -259,7 +259,6 @@ For detailed performance analysis, see [PERFORMANCE.md](./PERFORMANCE.md).
 
 - **Vector storage**
   - [ ] Add enhanced test coverage for sqlite-vec integration
-  - [ ] Optimize linear search sort (replace bubble sort with sort.Slice)
   - [ ] Document vector config, sqlite-vec setup, and logging in detail
   - [ ] Add Prometheus metrics for vector queries (counters, histograms)
 - **S3 compatibility**
