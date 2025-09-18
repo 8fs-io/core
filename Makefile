@@ -35,7 +35,11 @@ help:
 	@echo "  benchmark-realistic Realistic benchmark (1000 vectors, 384D)" 
 	@echo "  benchmark-large     Large benchmark (5000 vectors, 384D)"
 	@echo "  benchmark-compare   Comparative benchmarks across configs"
+	@echo ""
+	@echo "Data Generation:"
 	@echo "  generate-sample     Generate sample data (1000 realistic vectors)"
+	@echo "  generate-clustered  Generate clustered dataset (1000 vectors)"
+	@echo "  generate-random     Generate random dataset (1000 vectors)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker           Build Docker image"
@@ -185,6 +189,11 @@ benchmark-build:
 	@echo "🔨 Building benchmark tool..."
 	@go build -o $(BUILD_DIR)/benchmark ./cmd/benchmark/
 
+# Build data generator tool
+generate-data-build:
+	@echo "🔨 Building data generator tool..."
+	@go build -o $(BUILD_DIR)/generate-data ./cmd/generate-data/
+
 # Quick benchmark for development (small dataset, fast)
 benchmark-quick: benchmark-build
 	@echo "⚡ Running quick benchmark..."
@@ -245,17 +254,24 @@ benchmark-compare: benchmark-build
 	@echo "✅ Comparative benchmarks complete! Results in ./data/benchmark_compare_results.json"
 
 # Generate sample data for testing
-generate-sample: benchmark-build  
+generate-sample: generate-data-build
 	@echo "🎯 Generating sample data..."
-	@./scripts/generate_sample_data.sh ./data/sample_vectors.db 1000 384 realistic
+	@mkdir -p ./data
+	@$(BUILD_DIR)/generate-data -db ./data/sample_vectors.db -count 1000 -dims 384 -type realistic
 	@echo "✅ Sample data generated in ./data/sample_vectors.db"
 
 # Generate different dataset types
-generate-clustered: benchmark-build
-	@./scripts/generate_sample_data.sh ./data/clustered_vectors.db 1000 384 clustered
+generate-clustered: generate-data-build
+	@echo "🎯 Generating clustered dataset..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/generate-data -db ./data/clustered_vectors.db -count 1000 -dims 384 -type clustered
+	@echo "✅ Clustered data generated in ./data/clustered_vectors.db"
 
-generate-random: benchmark-build  
-	@./scripts/generate_sample_data.sh ./data/random_vectors.db 1000 384 random
+generate-random: generate-data-build
+	@echo "🎯 Generating random dataset..."
+	@mkdir -p ./data  
+	@$(BUILD_DIR)/generate-data -db ./data/random_vectors.db -count 1000 -dims 384 -type random
+	@echo "✅ Random data generated in ./data/random_vectors.db"
 
 # Clean benchmark data
 benchmark-clean:
