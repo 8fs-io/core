@@ -158,9 +158,10 @@ func TestValidateDimensions(t *testing.T) {
 		embedding []float64
 		wantErr   bool
 	}{
-		{name: "valid exact dimension", embedding: make([]float64, EmbeddingDim), wantErr: false},
-		{name: "too small", embedding: make([]float64, EmbeddingDim-1), wantErr: true},
-		{name: "too large", embedding: make([]float64, EmbeddingDim+1), wantErr: true},
+		{name: "valid min dimension", embedding: make([]float64, MinEmbeddingDim), wantErr: false},
+		{name: "valid max dimension", embedding: make([]float64, MaxEmbeddingDim), wantErr: false},
+		{name: "too small", embedding: make([]float64, MinEmbeddingDim-1), wantErr: true},
+		{name: "too large", embedding: make([]float64, MaxEmbeddingDim+1), wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -193,6 +194,15 @@ func TestValidateVector(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid max dimension vector",
+			vector: &Vector{
+				ID:        "test-max",
+				Embedding: make([]float64, MaxEmbeddingDim),
+				Metadata:  map[string]interface{}{"type": "test"},
+			},
+			wantErr: false,
+		},
+		{
 			name: "empty ID",
 			vector: &Vector{
 				ID:        "",
@@ -212,7 +222,7 @@ func TestValidateVector(t *testing.T) {
 			name: "invalid dimensions",
 			vector: &Vector{
 				ID:        "test1",
-				Embedding: make([]float64, EmbeddingDim-10),
+				Embedding: make([]float64, MinEmbeddingDim-1), // 2 dimensions, below minimum of 3
 			},
 			wantErr: true,
 		},

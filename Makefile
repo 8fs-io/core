@@ -1,6 +1,6 @@
 # Makefile for 8fs S3-compatible storage server
 
-.PHONY: build clean test run docker help cross-platform install dev
+.PHONY: build clean test run docker help cross-platform install dev benchmark
 
 # Variables
 BINARY_NAME := 8fs
@@ -17,21 +17,46 @@ help:
 	@echo "8fs S3-compatible Storage Server"
 	@echo "================================"
 	@echo "Available targets:"
+	@echo ""
+	@echo "Build & Run:"
 	@echo "  build            Build the 8fs binary"
-	@echo "  clean            Clean build artifacts"
-	@echo "  test             Run tests"
+	@echo "  clean            Clean build artifacts" 
 	@echo "  run              Build and run the server"
+	@echo "  dev              Run in development mode"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test             Run tests"
+	@echo "  test-integration Run integration tests"
+	@echo "  coverage         Generate coverage report"
+	@echo "  race             Build with race detector"
+	@echo ""
+	@echo "Performance & Benchmarking:"
+	@echo "  benchmark-quick     Quick benchmark (100 vectors, 3D)"
+	@echo "  benchmark-realistic Realistic benchmark (1000 vectors, 384D)" 
+	@echo "  benchmark-large     Large benchmark (5000 vectors, 384D)"
+	@echo "  benchmark-compare   Comparative benchmarks across configs"
+	@echo ""
+	@echo "Data Generation:"
+	@echo "  generate-sample     Generate sample data (1000 realistic vectors)"
+	@echo "  generate-clustered  Generate clustered dataset (1000 vectors)"
+	@echo "  generate-random     Generate random dataset (1000 vectors)"
+	@echo ""
+	@echo "Docker:"
 	@echo "  docker           Build Docker image"
-	@echo "  cross-platform   Build for multiple platforms"
-	@echo "  install          Build and install to GOPATH/bin"
-	@echo "  dev              Run in development mode with file watching"
-	@echo "  help             Show this help message"
+	@echo "  compose-up       Start with docker-compose"
+	@echo "  compose-down     Stop docker-compose"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  install          Install to GOPATH/bin"
+	@echo "  fmt              Format code"
+	@echo "  lint             Lint code"
+	@echo "  info             Show binary information"
 
 # Build the binary
 build:
 	@echo "🚀 Building 8fs..."
 	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build \
+	CGO_ENABLED=1 go build \
 		-trimpath \
 		-ldflags "-s -w -X 'main.version=$(VERSION)' -X 'main.buildTime=$(shell date -u '+%Y-%m-%d %H:%M:%S UTC')'" \
 		-o $(BUILD_DIR)/$(BINARY_NAME) \
@@ -155,3 +180,107 @@ quick: clean build test
 
 # Full workflow with cross-platform build
 full: clean test cross-platform docker
+
+# Performance Benchmarking Targets
+# =================================
+
+# Build benchmark tool
+benchmark-build:
+	@echo "🔨 Building benchmark tool..."
+	@go build -o $(BUILD_DIR)/benchmark ./cmd/benchmark/
+
+# Build data generator tool
+generate-data-build:
+	@echo "🔨 Building data generator tool..."
+	@go build -o $(BUILD_DIR)/generate-data ./cmd/generate-data/
+
+# Quick benchmark for development (small dataset, fast)
+benchmark-quick: benchmark-build
+	@echo "⚡ Running quick benchmark..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/benchmark \
+		-db ./data/benchmark_quick.db \
+		-output ./data/benchmark_quick_results.json \
+		-vectors 100 \
+		-queries 25 \
+		-dims 3 \
+		-dataset random \
+		-topk 5 \
+		-verbose=false \
+		-cleanup=true
+	@echo "✅ Quick benchmark complete! Results in ./data/benchmark_quick_results.json"
+
+# Realistic benchmark (production-like dataset)
+benchmark-realistic: benchmark-build
+	@echo "🎯 Running realistic benchmark..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/benchmark \
+		-db ./data/benchmark_realistic.db \
+		-output ./data/benchmark_realistic_results.json \
+		-vectors 1000 \
+		-queries 100 \
+		-dims 384 \
+		-dataset realistic \
+		-topk 10 \
+		-verbose=true \
+		-cleanup=true
+	@echo "✅ Realistic benchmark complete! Results in ./data/benchmark_realistic_results.json"
+
+# Large benchmark (performance testing)
+benchmark-large: benchmark-build
+	@echo "🚀 Running large benchmark..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/benchmark \
+		-db ./data/benchmark_large.db \
+		-output ./data/benchmark_large_results.json \
+		-vectors 5000 \
+		-queries 200 \
+		-dims 384 \
+		-dataset realistic \
+		-topk 10 \
+		-verbose=true \
+		-cleanup=true
+	@echo "✅ Large benchmark complete! Results in ./data/benchmark_large_results.json"
+
+# Comparative benchmarks (multiple configurations)
+benchmark-compare: benchmark-build
+	@echo "📊 Running comparative benchmarks..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/benchmark \
+		-db ./data/benchmark_compare.db \
+		-output ./data/benchmark_compare_results.json \
+		-compare=true \
+		-cleanup=true
+	@echo "✅ Comparative benchmarks complete! Results in ./data/benchmark_compare_results.json"
+
+# Generate sample data for testing
+generate-sample: generate-data-build
+	@echo "🎯 Generating sample data..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/generate-data -db ./data/sample_vectors.db -count 1000 -dims 384 -type realistic
+	@echo "✅ Sample data generated in ./data/sample_vectors.db"
+
+# Generate different dataset types
+generate-clustered: generate-data-build
+	@echo "🎯 Generating clustered dataset..."
+	@mkdir -p ./data
+	@$(BUILD_DIR)/generate-data -db ./data/clustered_vectors.db -count 1000 -dims 384 -type clustered
+	@echo "✅ Clustered data generated in ./data/clustered_vectors.db"
+
+generate-random: generate-data-build
+	@echo "🎯 Generating random dataset..."
+	@mkdir -p ./data  
+	@$(BUILD_DIR)/generate-data -db ./data/random_vectors.db -count 1000 -dims 384 -type random
+	@echo "✅ Random data generated in ./data/random_vectors.db"
+
+# Clean benchmark data
+benchmark-clean:
+	@echo "🧹 Cleaning benchmark data..."
+	@rm -f ./data/benchmark_*.db ./data/benchmark_*.json
+	@rm -f ./data/sample_*.db ./data/clustered_*.db ./data/random_*.db
+	@echo "✅ Benchmark data cleaned"
+
+# Show benchmark results
+benchmark-results:
+	@echo "📈 Recent benchmark results:"
+	@find ./data -name "benchmark_*_results.json" -exec echo "📄 {}" \; -exec jq -r '.config | "Vectors: \(.vector_count), Queries: \(.query_count), Dims: \(.dimensions), Dataset: \(.dataset_type)"' {} \; -exec jq -r '"Insert: \(.insert_metrics.throughput_per_sec | floor) vec/sec, Search: \(.search_metrics.throughput_per_sec | floor) query/sec"' {} \; -exec echo "" \; 2>/dev/null || echo "No results found or jq not installed"

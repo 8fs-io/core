@@ -20,8 +20,8 @@ func TestVectorHandlerIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_integration.db")
 
-	// Initialize vector storage (extension disabled for integration test)
-	cfg := vectors.SQLiteVecConfig{Path: dbPath, Dimension: vectors.EmbeddingDim, EnableExtension: false}
+	// Initialize vector storage
+	cfg := vectors.SQLiteVecConfig{Path: dbPath, Dimension: vectors.EmbeddingDim}
 	storage, err := vectors.NewSQLiteVecStorage(cfg, nil)
 	if err != nil {
 		t.Fatalf("Failed to create vector storage: %v", err)
@@ -84,6 +84,15 @@ func TestVectorHandlerIntegration(t *testing.T) {
 
 		if storeResp["id"] != "test-doc-1" {
 			t.Errorf("Expected ID 'test-doc-1', got %v", storeResp["id"])
+		}
+
+		// Check response fields match expected successful response
+		if storeResp["message"] != "Vector stored successfully" {
+			t.Errorf("Expected message 'Vector stored successfully', got %v", storeResp["message"])
+		}
+
+		if dimensions, ok := storeResp["dimensions"].(float64); !ok || int(dimensions) != len(emb) {
+			t.Errorf("Expected dimensions %d, got %v (ok: %v)", len(emb), storeResp["dimensions"], ok)
 		}
 
 		// Search for similar vectors
@@ -256,4 +265,85 @@ func TestVectorHandlerErrors(t *testing.T) {
 	if w.Code == http.StatusOK {
 		t.Error("Expected error with nil storage, but got success")
 	}
+}
+
+// TestVectorHandlerDimensionBoundaries validates min and max dimension acceptance.
+func TestVectorHandlerDimensionBoundaries(t *testing.T) {
+	// Test with MinEmbeddingDim (3D vectors)
+	t.Run("MinDimension", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dbPath := filepath.Join(tmpDir, "dim_bounds_min.db")
+		cfg := vectors.SQLiteVecConfig{Path: dbPath, Dimension: vectors.MinEmbeddingDim} // 3D
+		store, err := vectors.NewSQLiteVecStorage(cfg, nil)
+		if err != nil {
+			t.Fatalf("storage init: %v", err)
+		}
+		defer store.Close()
+
+		h := handlers.NewVectorHandler(&container.Container{}, store)
+		gin.SetMode(gin.TestMode)
+		r := gin.New()
+		g := r.Group("/api/v1/vectors")
+		g.POST("/embeddings", h.StoreEmbedding)
+
+		// Test 3D vector
+		minEmb := make([]float64, vectors.MinEmbeddingDim)
+		for i := range minEmb {
+			minEmb[i] = 0.01
+		}
+		minBody, _ := json.Marshal(map[string]interface{}{"id": "min-dim", "embedding": minEmb})
+		minReq := httptest.NewRequest("POST", "/api/v1/vectors/embeddings", bytes.NewBuffer(minBody))
+		minReq.Header.Set("Content-Type", "application/json")
+		minW := httptest.NewRecorder()
+		r.ServeHTTP(minW, minReq)
+		if minW.Code != http.StatusCreated {
+			t.Fatalf("min dim expected 201 got %d body=%s", minW.Code, minW.Body.String())
+		}
+
+		// Test wrong dimension (should fail)
+		wrongEmb := make([]float64, 5) // Wrong dimension for 3D table
+		for i := range wrongEmb {
+			wrongEmb[i] = 0.01
+		}
+		wrongBody, _ := json.Marshal(map[string]interface{}{"id": "wrong-dim", "embedding": wrongEmb})
+		wrongReq := httptest.NewRequest("POST", "/api/v1/vectors/embeddings", bytes.NewBuffer(wrongBody))
+		wrongReq.Header.Set("Content-Type", "application/json")
+		wrongW := httptest.NewRecorder()
+		r.ServeHTTP(wrongW, wrongReq)
+		if wrongW.Code != http.StatusBadRequest {
+			t.Fatalf("wrong dim expected 400 got %d body=%s", wrongW.Code, wrongW.Body.String())
+		}
+	})
+
+	// Test with standard dimension (384D vectors)
+	t.Run("StandardDimension", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dbPath := filepath.Join(tmpDir, "dim_bounds_std.db")
+		cfg := vectors.SQLiteVecConfig{Path: dbPath, Dimension: vectors.EmbeddingDim} // 384D
+		store, err := vectors.NewSQLiteVecStorage(cfg, nil)
+		if err != nil {
+			t.Fatalf("storage init: %v", err)
+		}
+		defer store.Close()
+
+		h := handlers.NewVectorHandler(&container.Container{}, store)
+		gin.SetMode(gin.TestMode)
+		r := gin.New()
+		g := r.Group("/api/v1/vectors")
+		g.POST("/embeddings", h.StoreEmbedding)
+
+		// Test 384D vector
+		stdEmb := make([]float64, vectors.EmbeddingDim)
+		for i := range stdEmb {
+			stdEmb[i] = 0.01
+		}
+		stdBody, _ := json.Marshal(map[string]interface{}{"id": "std-dim", "embedding": stdEmb})
+		stdReq := httptest.NewRequest("POST", "/api/v1/vectors/embeddings", bytes.NewBuffer(stdBody))
+		stdReq.Header.Set("Content-Type", "application/json")
+		stdW := httptest.NewRecorder()
+		r.ServeHTTP(stdW, stdReq)
+		if stdW.Code != http.StatusCreated {
+			t.Fatalf("std dim expected 201 got %d body=%s", stdW.Code, stdW.Body.String())
+		}
+	})
 }
