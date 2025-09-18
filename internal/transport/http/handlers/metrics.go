@@ -53,6 +53,25 @@ var (
 		},
 		[]string{"access_key", "status"},
 	)
+
+	// Operation (insert/search) counter
+	vectorOperationsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vector_operations_total",
+			Help: "Total number of vector operations",
+		},
+		[]string{"operation", "status"},
+	)
+
+	// Operation (insert/search) duration
+	operationDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "vector_operation_duration_seconds",
+			Help:    "Duration of the vector operations in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"operation"},
+	)
 )
 
 // MetricsHandler handles Prometheus metrics requests
@@ -74,7 +93,13 @@ func (h *MetricsHandler) Handle(c *gin.Context) {
 	promhttp.Handler().ServeHTTP(c.Writer, c.Request)
 }
 
-// updateStorageMetrics updates storage-related metrics
+// Tracking the vector operation
+func trackOperation(start time.Time, operation, status string) {
+	vectorOperationsTotal.WithLabelValues(operation, status).Inc()
+	operationDuration.WithLabelValues(operation).Observe(time.Since(start).Seconds())
+}
+
+// UpdateStorageMetrics updates storage-related metrics
 func (h *MetricsHandler) updateStorageMetrics() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
