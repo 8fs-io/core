@@ -226,10 +226,17 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 			metadata = map[string]interface{}{"raw": metadataJSON}
 		}
 
-		// Convert distance to similarity score (1 - cosine_distance)
-		similarity := 1.0 - distance
-		if similarity < 0 {
-			similarity = 0
+		// Convert distance to similarity score
+		// For cosine distance, values range from 0 (identical) to 2 (opposite)
+		// We convert to similarity scale 0-1 where 1 is most similar
+		var similarity float64
+		if distance >= 2.0 {
+			similarity = 0.0 // Completely opposite vectors
+		} else if distance <= 0.0 {
+			similarity = 1.0 // Identical vectors
+		} else {
+			// Linear mapping from distance [0,2] to similarity [1,0]
+			similarity = 1.0 - (distance / 2.0)
 		}
 
 		vector := &Vector{
@@ -246,6 +253,28 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 
 	s.logger.Info("sqlite-vec search completed", "query_dims", len(query), "results", len(results), "top_k", topK)
 	return results, nil
+}
+
+// Delete removes all vectors associated with a specific document ID
+func (s *SQLiteVecStorage) Delete(documentID string) error {
+	if s.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	query := `DELETE FROM embeddings WHERE id = ?`
+	result, err := s.db.Exec(query, documentID)
+	if err != nil {
+		return fmt.Errorf("failed to delete vectors for document %s: %w", documentID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		s.logger.Warn("could not get rows affected count", "error", err)
+	} else {
+		s.logger.Info("deleted vectors for document", "document_id", documentID, "rows_affected", rowsAffected)
+	}
+
+	return nil
 }
 
 // Close closes the database connection

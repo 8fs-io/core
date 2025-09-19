@@ -36,6 +36,15 @@ func main() {
 		"auth_driver", cfg.Auth.Driver,
 	)
 
+	// Start async indexing service if enabled
+	if c.IndexingService != nil {
+		ctx := context.Background()
+		if err := c.IndexingService.Start(ctx); err != nil {
+			c.Logger.Error("Failed to start indexing service", "error", err)
+			log.Fatalf("Failed to start indexing service: %v", err)
+		}
+	}
+
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
 
@@ -72,6 +81,15 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		c.Logger.Error("Server forced to shutdown", "error", err)
 		os.Exit(1)
+	}
+
+	// Stop indexing service if running
+	if c.IndexingService != nil {
+		if err := c.IndexingService.Stop(); err != nil {
+			c.Logger.Warn("failed stopping indexing service", "error", err)
+		} else {
+			c.Logger.Info("indexing service stopped")
+		}
 	}
 
 	// Close vector storage if initialized

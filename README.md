@@ -14,8 +14,27 @@ See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadma
 
 ## 🆕 Recent Changes
 
+- **🤖 RAG (Retrieval-Augmented Generation) Server:**
+  - **NEW**: Complete RAG implementation with `/api/v1/chat/completions` (OpenAI compatible)
+  - **Auto Context Retrieval**: Query → Vector Search → Context Formation → AI Generation
+  - **Multi-Provider Support**: Ollama (Llama), OpenAI (GPT), AWS Bedrock (Claude)
+  - **Production Ready**: Token usage tracking, relevance filtering, context management
+- **🚀 Async Document Indexing:**
+  - **NEW**: Automatic background processing for all uploaded text documents
+  - Zero-configuration AI-native storage - upload any text and it becomes instantly searchable
+  - Background worker system with retry logic and job status tracking
+  - **Performance**: Non-blocking uploads with async embedding generation via Ollama
+- **🔍 Text-Based Semantic Search:**
+  - **NEW**: `POST /api/v1/vectors/search/text` - Search with plain text queries
+  - No manual embedding generation required - just upload and search
+  - Semantic similarity matching using all-minilm:latest model (384 dimensions)
+  - **User Experience**: From upload to searchable in seconds, automatically
+- **📊 Enhanced Testing & Performance:**
+  - **NEW**: Comprehensive S3 compatibility test suite (PR #34)
+  - **NEW**: Complete benchmarking tools and performance documentation
+  - **NEW**: Data generation utilities for testing and development
+  - **Validated**: Production-scale performance (1,700+ vec/sec insert)
 - **Pure SQLite-vec Vector Storage:**
-  - **BREAKING**: Removed fallback implementation for simplified, production-focused architecture
   - Pure sqlite-vec implementation with CGO support for maximum performance
   - Advanced dimension handling (3-1536) with intelligent validation
   - **Performance**: 1,700+ vec/sec insert, 8.9 search/sec at production scale
@@ -24,13 +43,18 @@ See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadma
   - Multiple dataset generators: random, clustered, realistic patterns
   - Automated benchmarking tools via `make benchmark-*` targets
   - Production-validated with up to 5,000 vectors at 384 dimensions
-- **Developer Experience:**
-  - Enhanced error handling with proper HTTP status codes for dimension mismatches
-  - Clean package structure without naming conflicts
-  - Comprehensive test coverage including integration and performance tests
 
 ## 🗺 Roadmap / Next Steps
 
+- **🤖 AI Integration & Async Processing**
+  - [x] Async document indexing with background workers
+  - [x] Text-based semantic search API (`/api/v1/vectors/search/text`)
+  - [x] Automatic embedding generation via Ollama integration
+  - [x] Job status tracking and monitoring APIs
+  - [x] Zero-configuration AI-native storage experience
+  - [ ] Multi-model support (different embedding models per bucket)
+  - [ ] Chunking strategies for large documents
+  - [ ] Batch processing optimization for high-volume uploads
 - **Vector storage**
   - [x] Pure SQLite-vec implementation with CGO support
   - [x] Production-scale performance validation (1,700+ vec/sec)
@@ -40,9 +64,13 @@ See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadma
   - [ ] Parallel search execution for multi-query workloads
   - [ ] Advanced indexing strategies for >10K vector datasets
 - **S3 compatibility**
-  - [ ] Restore and enhance S3 compatibility test suite
-  - [ ] AWS CLI integration testing and documentation
+  - [x] Complete S3 API implementation with async AI processing
+  - [x] Bucket-level indexing control (enabled by default)
+  - [x] **Comprehensive S3 compatibility test suite** - **NEW!**
+  - [x] AWS CLI integration testing and documentation
 - **General**
+  - [x] Docker and container deployment ready
+  - [x] Comprehensive monitoring and health checks
   - [ ] Multi-tenant support: Tenant isolation and management
   - [ ] Web UI: Dashboard for storage and vector management
   - [ ] Enhanced backends: Additional storage drivers beyond filesystem
@@ -52,6 +80,27 @@ See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadma
 
 **8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture and production-ready deployment options.  
 Perfect for developers who want a simple, self-hosted storage solution.
+
+## 🤖 AI-Native Storage
+
+**NEW!** 8fs now provides zero-configuration AI capabilities:
+
+- **📄 Text-to-Vector**: Upload any text document → automatically indexed for semantic search
+- **🔍 Plain Text Search**: Search with natural language - no embeddings required
+- **⚡ Async Processing**: Non-blocking indexing with background workers
+- **🧠 Ollama Integration**: Local AI model (all-minilm) for privacy-first embeddings
+
+```bash
+# Upload a text file - it becomes instantly searchable
+curl -X PUT "http://localhost:8080/my-bucket/docs.txt" \
+     -H "Content-Type: text/plain" \
+     -d "Machine learning is transforming software development"
+
+# Search with plain text - finds semantically similar content
+curl -X POST "http://localhost:8080/api/v1/vectors/search/text" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "AI software engineering", "limit": 5}'
+```
 
 ---
 
@@ -134,16 +183,42 @@ docker run -p 8080:8080 \
 
 #### Using Docker Compose
 ```bash
-# Start basic services
+# Start AI-enabled services (includes Ollama for text search)
 docker-compose up -d
 
 # Start with monitoring (Prometheus + Grafana)
 docker-compose --profile monitoring up -d
+
+# Your AI-native 8fs server is now running!
+# S3-compatible API: http://localhost:8080
+# Vector API: http://localhost:8080/api/v1/vectors
+# Text Search API: http://localhost:8080/api/v1/vectors/search/text
+# Health: http://localhost:8080/healthz
+# Ollama AI Service: http://localhost:11434 (internal)
 ```
 
 ### Vector Storage Quick Start
 
 Once your server is running, you can start using vector storage:
+
+#### 🚀 NEW: Upload & Search with Text (Zero Setup!)
+
+```bash
+# 1. Upload any text document - it becomes automatically searchable
+curl -X PUT "http://localhost:8080/my-bucket/document.txt" \
+  -H "Content-Type: text/plain" \
+  --data-binary "This is my document about machine learning and AI."
+
+# 2. Search with plain text - no embeddings needed!
+curl -X POST "http://localhost:8080/api/v1/vectors/search/text" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "artificial intelligence",
+    "top_k": 5
+  }'
+```
+
+#### Advanced: Direct Vector Operations
 
 #### Store a Vector Embedding
 ```bash
@@ -179,13 +254,30 @@ make benchmark-quick
 
 ## ✅ Features
 
+### 🤖 RAG (Retrieval-Augmented Generation) - **NEW!**
+- ✅ **OpenAI-Compatible Chat API**: `POST /api/v1/chat/completions` - full RAG pipeline
+- ✅ **Context Retrieval**: `POST /api/v1/chat/search/context` - semantic document search
+- ✅ **Multi-Provider Support**: Ollama (Llama), OpenAI (GPT), AWS Bedrock (Claude)
+- ✅ **Smart Context Management**: Relevance filtering, source tracking, token optimization
+- ✅ **Production Ready**: Token usage tracking, performance monitoring, health checks
+
+### 🤖 AI-Native Storage
+- ✅ **Async Document Indexing**: Auto-processing of uploaded text documents
+- ✅ **Text-Based Search**: `POST /api/v1/vectors/search/text` - search with plain text
+- ✅ **Zero Configuration**: Upload text → instantly searchable, no setup required
+- ✅ **Background Workers**: Non-blocking processing with retry logic
+- ✅ **Job Monitoring**: Status tracking and health check APIs
+- ✅ **Ollama Integration**: Automatic embedding generation via all-minilm model
+
 ### S3 API Compatibility
 - ✅ Bucket operations (create, delete, list)
-- ✅ Object operations (upload, download, delete)
+- ✅ Object operations (upload, download, delete) 
 - ✅ Object metadata and listing
 - ✅ AWS Signature v4 authentication
+- ✅ **Bucket-level indexing control** (enabled by default)
 
 ### Vector Storage API
+- ✅ **Text search** (`POST /api/v1/vectors/search/text`) - **NEW!**
 - ✅ Embedding storage (`POST /api/v1/vectors/embeddings`)
 - ✅ Cosine similarity search (`POST /api/v1/vectors/search`)
 - ✅ Vector retrieval (`GET /api/v1/vectors/embeddings/:id`)
@@ -193,12 +285,14 @@ make benchmark-quick
 - ✅ Vector listing (`GET /api/v1/vectors/embeddings`)
 - ✅ Dimension validation (3-1,536 dimensions)
 - ✅ Metadata filtering and search
+- ✅ **Comprehensive benchmarking suite** - **NEW!**
+- ✅ **Performance metrics & monitoring** - **NEW!**
 
 ### Production Ready
 - 📊 **Metrics**: Prometheus integration
 - 📝 **Logging**: Structured logs with audit trails
 - ❤️ **Health Checks**: `/healthz` endpoint
-- � **Docker**: Ready-to-deploy containers
+- 🐳 **Docker**: Ready-to-deploy containers
 - 🚀 **Performance**: Optimized builds
 
 ### API Endpoints
@@ -221,6 +315,12 @@ make benchmark-quick
 - `GET /api/v1/vectors/embeddings/:id` - Retrieve specific vector
 - `GET /api/v1/vectors/embeddings` - List all vectors
 - `DELETE /api/v1/vectors/embeddings/:id` - Delete vector
+
+#### RAG (Retrieval-Augmented Generation) Endpoints - **NEW!**
+- `POST /api/v1/chat/completions` - OpenAI-compatible RAG chat completions
+- `POST /api/v1/chat/search/context` - Search and retrieve relevant context
+- `POST /api/v1/chat/generate/context` - Generate text with provided context
+- `GET /api/v1/chat/health` - RAG service health check
 
 ---
 
@@ -249,11 +349,54 @@ Clean architecture with clear separation of concerns:
 ## Configuration
 
 Environment variables:
+
+### Basic Configuration
 - `DEFAULT_ACCESS_KEY`: AWS access key (default: `AKIAIOSFODNN7EXAMPLE`)
 - `DEFAULT_SECRET_KEY`: AWS secret key (default: `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`)
 - `PORT`: Server port (default: `8080`)
 - `STORAGE_PATH`: Storage directory (default: `./storage`)
 - `GIN_MODE`: Gin mode (`debug`, `release`) (default: `debug`)
+
+### 🤖 AI Integration Configuration (NEW!)
+- `AI_ENABLED`: Enable/disable AI features (default: `true`)
+- `AI_PROVIDER`: AI provider (`ollama`, `openai`, `bedrock`) (default: `ollama`)
+- `OLLAMA_BASE_URL`: Ollama server endpoint (default: `http://ollama:11434`)
+- `OLLAMA_MODEL`: Embedding model to use (default: `all-minilm:latest`)
+
+#### OpenAI Provider (NEW!)
+- `OPENAI_API_KEY`: Your OpenAI API key (required for openai provider)
+- `OPENAI_ORG_ID`: Organization ID (optional)
+- `OPENAI_EMBED_MODEL`: Embedding model (default: `text-embedding-3-small`)
+
+#### AWS Bedrock Provider (NEW!)
+- `AWS_BEDROCK_REGION`: AWS region (default: `us-east-1`)
+- `AWS_BEDROCK_ACCESS_KEY_ID`: AWS access key (required for bedrock provider)
+- `AWS_BEDROCK_SECRET_ACCESS_KEY`: AWS secret key (required for bedrock provider)
+- `AWS_BEDROCK_EMBED_MODEL`: Bedrock model (default: `amazon.titan-embed-text-v1`)
+
+### 🐳 Docker AI Provider Setup
+
+8fs now supports multiple AI embedding providers with dedicated Docker configurations:
+
+```bash
+# Local Ollama (default) - Privacy-first
+./docker.sh run ollama
+
+# OpenAI - High-performance cloud embeddings
+./docker.sh setup-env openai  # Setup API key
+./docker.sh run openai
+
+# AWS Bedrock - Enterprise-grade embeddings
+./docker.sh setup-env bedrock  # Setup AWS credentials
+./docker.sh run bedrock
+
+# Show provider information
+./docker.sh config
+```
+
+> **Provider Comparison**: See [AI_PROVIDERS.md](./AI_PROVIDERS.md) for detailed provider comparison, setup guides, and performance characteristics.
+
+> **Note**: The text search feature requires Ollama with the `all-minilm:latest` model. When using Docker Compose, this is automatically configured and the model is pulled on startup.
 
 ## Development
 
@@ -324,6 +467,34 @@ For detailed performance analysis, see [PERFORMANCE.md](./PERFORMANCE.md).
   - [ ] Web UI: Dashboard for storage management
   - [ ] Enhanced backends: Additional storage drivers
   - [ ] Advanced features: Versioning, lifecycle policies
+
+
+## AI/LLM Integration
+
+8fs includes powerful AI integration capabilities for document processing and retrieval-augmented generation:
+
+- **Llama Integration**: Complete RAG pipeline with text chunking, embedding generation, and semantic search
+- **Document Processing**: Automatic text chunking and vector embedding storage
+- **Semantic Search**: Vector similarity search for content discovery
+- **Ready-to-Use Tools**: Command-line demo tools for quick integration
+
+See [`docs/LLAMA_INTEGRATION.md`](./docs/LLAMA_INTEGRATION.md) for comprehensive documentation and examples.
+
+### Quick Start with Llama Demo
+
+```bash
+# Build the Llama integration demo
+make llama-demo-build
+
+# Ingest a document
+./bin/llama-demo -cmd ingest -input document.txt
+
+# Search for similar content
+./bin/llama-demo -cmd search -query "machine learning" -topk 5
+
+# Perform RAG (Retrieval-Augmented Generation)
+./bin/llama-demo -cmd rag -query "What is artificial intelligence?"
+```
 
 
 ## Client Usage Examples

@@ -48,6 +48,12 @@ type SearchEmbeddingsRequest struct {
 	TopK  int       `json:"top_k,omitempty"`
 }
 
+// SearchTextRequest represents the request payload for text-based searching
+type SearchTextRequest struct {
+	Query string `json:"query" binding:"required"`
+	TopK  int    `json:"top_k,omitempty"`
+}
+
 // StoreEmbedding handles POST /vectors/embeddings
 func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Tracking the insert operation duration
@@ -182,6 +188,71 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 		"query_dimensions": len(req.Query),
 		"top_k":            req.TopK,
 		"count":            len(results),
+	})
+}
+
+// SearchText handles POST /vectors/search/text - text-based semantic search
+func (h *VectorHandler) SearchText(c *gin.Context) {
+	// Tracking the search operation duration
+	status := STATUS_SUCCESS
+	start := time.Now()
+	defer func() {
+		trackOperation(start, SEARCH_OPERATION, status)
+	}()
+
+	var req SearchTextRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		status = STATUS_ERROR
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request payload",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Set default top_k if not provided
+	if req.TopK <= 0 {
+		req.TopK = 10
+	}
+
+	// Check if AI service is available for embedding generation
+	if h.container.AIService == nil {
+		status = STATUS_ERROR
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service not available",
+			"message": "Text search requires AI service for embedding generation",
+		})
+		return
+	}
+
+	// Generate embedding from query text
+	queryEmbedding, err := h.container.AIService.GenerateEmbedding(c.Request.Context(), req.Query)
+	if err != nil {
+		status = STATUS_ERROR
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to generate query embedding",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Perform the search with generated embedding
+	results, err := h.storage.Search(queryEmbedding, req.TopK)
+	if err != nil {
+		status = STATUS_ERROR
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Search failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"results":                    results,
+		"query_text":                 req.Query,
+		"query_embedding_dimensions": len(queryEmbedding),
+		"top_k":                      req.TopK,
+		"count":                      len(results),
 	})
 }
 

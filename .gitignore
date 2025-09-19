@@ -9,3 +9,5 @@ data/*
 
 # Ignore all files in bin/ directory (compiled binaries)
 bin/*
+
+*.log
