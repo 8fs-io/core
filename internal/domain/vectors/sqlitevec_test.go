@@ -11,8 +11,8 @@ func TestSQLiteVecStorage(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_vectors.db")
 
-	// Initialize storage with config (extension disabled for test)
-	cfg := SQLiteVecConfig{Path: dbPath, Dimension: EmbeddingDim, EnableExtension: false}
+	// Initialize storage with config
+	cfg := SQLiteVecConfig{Path: dbPath, Dimension: EmbeddingDim}
 	storage, err := NewSQLiteVecStorage(cfg, nil)
 	if err != nil {
 		t.Fatalf("Failed to create SQLiteVecStorage: %v", err)

@@ -4,7 +4,7 @@
 
 **8fs is the first S3-compatible storage server with built-in vector storage for AI developers.**
 
-Not a MinIO clone—8fs unifies object storage and vector embeddings in a lightweight binary for local AI labs, from laptops to Raspberry Pi clusters.
+Not a MinIO clone—8fs unifies object storage and vector embeddings in one lightweight binary for local AI labs, from laptops to Raspberry Pi clusters.
 
 > *S3 + vector storage in one <50MB binary—perfect for indie AI workflows.*
 
@@ -14,19 +14,41 @@ See [`VISION.md`](./VISION.md) for the full vision, market, and technical roadma
 
 ## 🆕 Recent Changes
 
-- **Canonical Go module path:** Now using `github.com/8fs-io/core` for all imports and go.mod.
-- **Vector storage subsystem:**
-  - Pluggable vector storage with [sqlite-vec](https://github.com/asg017/sqlite-vec) extension for fast vector search.
-  - Automatic fallback to pure Go linear search if extension is unavailable.
-  - Fixed embedding dimension (384) for all vectors.
-  - Dependency injection and config-driven enable/disable.
-  - Structured logging and audit support.
-  - Graceful shutdown and lifecycle management.
-- **Codebase refactor:**
-  - All root Go files now use a library package (no more package main in root).
-  - Integration tests and S3 compatibility tests modernized or archived.
-  - All internal imports updated to canonical org/repo path.
+- **Pure SQLite-vec Vector Storage:**
+  - **BREAKING**: Removed fallback implementation for simplified, production-focused architecture
+  - Pure sqlite-vec implementation with CGO support for maximum performance
+  - Advanced dimension handling (3-1536) with intelligent validation
+  - **Performance**: 1,700+ vec/sec insert, 8.9 search/sec at production scale
+- **Comprehensive Performance Suite:**
+  - Published benchmark results: [PERFORMANCE.md](./PERFORMANCE.md)
+  - Multiple dataset generators: random, clustered, realistic patterns
+  - Automated benchmarking tools via `make benchmark-*` targets
+  - Production-validated with up to 5,000 vectors at 384 dimensions
+- **Developer Experience:**
+  - Enhanced error handling with proper HTTP status codes for dimension mismatches
+  - Clean package structure without naming conflicts
+  - Comprehensive test coverage including integration and performance tests
 
+## 🗺 Roadmap / Next Steps
+
+- **Vector storage**
+  - [x] Pure SQLite-vec implementation with CGO support
+  - [x] Production-scale performance validation (1,700+ vec/sec)
+  - [x] Comprehensive benchmarking suite with published metrics
+  - [x] Advanced error handling and dimension validation
+  - [ ] SIMD acceleration for vector math operations  
+  - [ ] Parallel search execution for multi-query workloads
+  - [ ] Advanced indexing strategies for >10K vector datasets
+- **S3 compatibility**
+  - [ ] Restore and enhance S3 compatibility test suite
+  - [ ] AWS CLI integration testing and documentation
+- **General**
+  - [ ] Multi-tenant support: Tenant isolation and management
+  - [ ] Web UI: Dashboard for storage and vector management
+  - [ ] Enhanced backends: Additional storage drivers beyond filesystem
+  - [ ] Advanced features: Versioning, lifecycle policies, metadata search
+
+---
 
 **8fs** is a high-performance, S3-compatible storage server built with Go, featuring clean architecture and production-ready deployment options.  
 Perfect for developers who want a simple, self-hosted storage solution.
@@ -37,6 +59,7 @@ Perfect for developers who want a simple, self-hosted storage solution.
 
 ### Prerequisites
 - Go 1.20+ 
+- CGO enabled (for sqlite-vec support)
 - Docker (optional, for containerized deployment)
 
 ### Build and Run
@@ -79,7 +102,8 @@ make docker
 
 #### Option 3: Direct Go Build
 ```bash
-go build -o bin/8fs ./cmd/server
+# Build with CGO enabled for sqlite-vec support
+CGO_ENABLED=1 go build -o bin/8fs ./cmd/server
 ```
 
 ### Running the Server
@@ -117,6 +141,40 @@ docker-compose up -d
 docker-compose --profile monitoring up -d
 ```
 
+### Vector Storage Quick Start
+
+Once your server is running, you can start using vector storage:
+
+#### Store a Vector Embedding
+```bash
+curl -X POST http://localhost:8080/api/v1/vectors/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "doc1",
+    "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
+    "metadata": {"title": "Sample Document", "category": "example"}
+  }'
+```
+
+#### Search Similar Vectors
+```bash
+curl -X POST http://localhost:8080/api/v1/vectors/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": [0.1, 0.2, 0.3, 0.4, 0.5],
+    "top_k": 5
+  }'
+```
+
+#### Generate Sample Data for Testing
+```bash
+# Generate 100 sample vectors for testing
+./bin/generate-data --count 100 --dims 384 --type realistic
+
+# Run performance benchmarks
+make benchmark-quick
+```
+
 ---
 
 ## ✅ Features
@@ -127,6 +185,15 @@ docker-compose --profile monitoring up -d
 - ✅ Object metadata and listing
 - ✅ AWS Signature v4 authentication
 
+### Vector Storage API
+- ✅ Embedding storage (`POST /api/v1/vectors/embeddings`)
+- ✅ Cosine similarity search (`POST /api/v1/vectors/search`)
+- ✅ Vector retrieval (`GET /api/v1/vectors/embeddings/:id`)
+- ✅ Vector deletion (`DELETE /api/v1/vectors/embeddings/:id`)
+- ✅ Vector listing (`GET /api/v1/vectors/embeddings`)
+- ✅ Dimension validation (3-1,536 dimensions)
+- ✅ Metadata filtering and search
+
 ### Production Ready
 - 📊 **Metrics**: Prometheus integration
 - 📝 **Logging**: Structured logs with audit trails
@@ -135,6 +202,8 @@ docker-compose --profile monitoring up -d
 - 🚀 **Performance**: Optimized builds
 
 ### API Endpoints
+
+#### S3-Compatible Endpoints
 - `GET /healthz` - Health check
 - `GET /metrics` - Prometheus metrics
 - `GET /` - List buckets
@@ -145,6 +214,13 @@ docker-compose --profile monitoring up -d
 - `GET /:bucket/:key` - Retrieve object
 - `HEAD /:bucket/:key` - Get object metadata
 - `DELETE /:bucket/:key` - Delete object
+
+#### Vector Storage Endpoints
+- `POST /api/v1/vectors/embeddings` - Store vector embedding
+- `POST /api/v1/vectors/search` - Search similar vectors
+- `GET /api/v1/vectors/embeddings/:id` - Retrieve specific vector
+- `GET /api/v1/vectors/embeddings` - List all vectors
+- `DELETE /api/v1/vectors/embeddings/:id` - Delete vector
 
 ---
 
@@ -204,10 +280,33 @@ When running with `docker-compose --profile monitoring up -d`:
 
 ## Performance
 
+### System Performance
 - **Binary Size**: ~10MB (optimized)
 - **Memory Usage**: ~15MB baseline  
 - **Cold Start**: ~50ms
 - **Request Latency**: <1ms (95th percentile)
+
+### Vector Storage Performance
+- **Insert Performance**: 1,700+ vectors/second (production scale)
+- **Search Performance**: 1.8-8.9 queries/second (depending on dataset size)
+- **Dimension Support**: 3-1,536 dimensions with validation
+- **Storage Engine**: Pure SQLite-vec with CGO support for maximum performance
+
+#### Benchmark Results
+| Dataset Size | Dimensions | Insert/sec | Search/sec | Total Time |
+|--------------|------------|------------|------------|------------|
+| 100 vectors  | 3D         | 2,355.6    | 2,307.8    | 64ms       |
+| 1,000 vectors| 384D       | 2,144.0    | 8.9        | 11.7s      |
+| 5,000 vectors| 384D       | 1,736.6    | 1.8        | 1m55s      |
+
+**Quick Performance Test:**
+```bash
+make benchmark-quick     # Fast validation (100 vectors)
+make benchmark-realistic # Production simulation (1,000 vectors)  
+make benchmark-large     # Scale testing (5,000 vectors)
+```
+
+For detailed performance analysis, see [PERFORMANCE.md](./PERFORMANCE.md).
 
 ---
 
@@ -215,9 +314,8 @@ When running with `docker-compose --profile monitoring up -d`:
 ## � Roadmap / Next Steps
 
 - **Vector storage**
-  - [ ] Add explicit test coverage for fallback (extension-disabled) path
-  - [ ] Optimize linear search sort (replace bubble sort with sort.Slice)
-  - [ ] Document vector config, fallback, and logging in detail
+  - [ ] Add enhanced test coverage for sqlite-vec integration
+  - [ ] Document vector config, sqlite-vec setup, and logging in detail
   - [ ] Add Prometheus metrics for vector queries (counters, histograms)
 - **S3 compatibility**
   - [ ] Port/restore S3 compatibility tests using new router and DI

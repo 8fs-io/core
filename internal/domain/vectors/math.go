@@ -5,10 +5,20 @@ import (
 	"math"
 )
 
-// For current implementation we lock embedding dimension to a single size (384)
-// This simplifies the sqlite-vec virtual table schema and will be revisited
-// when dynamic dimensions & migrations are required.
-const EmbeddingDim = 384
+// Embedding dimensions
+// MinEmbeddingDim and MaxEmbeddingDim define the allowed range accepted by the
+// API. DefaultEmbeddingDim is the dimension currently used when creating the
+// sqlite-vec virtual table (the extension requires a fixed size schema).
+// For development and testing, we allow smaller dimensions (3+)
+const (
+	MinEmbeddingDim     = 3    // Allow small vectors for testing/development
+	MaxEmbeddingDim     = 1536 // Standard max for production embeddings
+	DefaultEmbeddingDim = 384  // Common embedding size (OpenAI, etc.)
+	ProductionMinDim    = 384  // Production minimum (can be enforced via config)
+)
+
+// Backward compatibility alias (existing code/tests may still refer to EmbeddingDim)
+const EmbeddingDim = DefaultEmbeddingDim
 
 // Vector represents an embedding vector with metadata
 type Vector struct {
@@ -78,8 +88,8 @@ func (vm *VectorMath) L2Norm(v []float64) float64 {
 // ValidateDimensions checks if vector dimensions are within acceptable range
 func (vm *VectorMath) ValidateDimensions(embedding []float64) error {
 	dim := len(embedding)
-	if dim != EmbeddingDim {
-		return fmt.Errorf("embedding dimension %d invalid: expected %d", dim, EmbeddingDim)
+	if dim < MinEmbeddingDim || dim > MaxEmbeddingDim {
+		return fmt.Errorf("embedding dimension %d invalid: expected between %d and %d", dim, MinEmbeddingDim, MaxEmbeddingDim)
 	}
 	return nil
 }

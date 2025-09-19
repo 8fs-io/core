@@ -76,7 +76,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 
 	// Initialize vector storage if enabled
 	if cfg.Vector.Enabled {
-		vecCfg := vectors.SQLiteVecConfig{Path: cfg.Vector.DBPath, Dimension: cfg.Vector.Dimension, EnableExtension: cfg.Vector.EnableExtension}
+		vecCfg := vectors.SQLiteVecConfig{Path: cfg.Vector.DBPath, Dimension: cfg.Vector.Dimension}
 		vecStore, err := vectors.NewSQLiteVecStorage(vecCfg, appLogger)
 		if err != nil {
 			// Log but don't fail container creation
