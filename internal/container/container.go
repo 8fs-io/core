@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/8fs-io/core/internal/config"
+	"github.com/8fs-io/core/internal/domain/ai"
+	"github.com/8fs-io/core/internal/domain/indexing"
+	"github.com/8fs-io/core/internal/domain/rag"
 	"github.com/8fs-io/core/internal/domain/storage"
 	"github.com/8fs-io/core/internal/domain/vectors"
 	storageInfra "github.com/8fs-io/core/internal/infrastructure/storage"
@@ -12,13 +15,16 @@ import (
 
 // Container holds all application dependencies
 type Container struct {
-	Config         *config.Config
-	Logger         logger.Logger
-	AuditLogger    *logger.AuditLogger
-	StorageRepo    storage.Repository
-	StorageService storage.Service
-	Validator      storage.Validator
-	VectorStorage  *vectors.SQLiteVecStorage
+	Config          *config.Config
+	Logger          logger.Logger
+	AuditLogger     *logger.AuditLogger
+	StorageRepo     storage.Repository
+	StorageService  storage.Service
+	Validator       storage.Validator
+	VectorStorage   *vectors.SQLiteVecStorage
+	AIService       ai.Service
+	IndexingService indexing.Service
+	RAGService      rag.Service
 }
 
 // NewContainer creates a new dependency injection container
@@ -83,6 +89,38 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 			appLogger.Warn("vector storage initialization failed", "error", err)
 		} else {
 			c.VectorStorage = vecStore
+
+			// Initialize AI service if vector storage is available
+			aiCfg := &ai.OllamaConfig{
+				BaseURL:    cfg.AI.BaseURL,
+				EmbedModel: cfg.AI.Ollama.EmbedModel,
+				ChatModel:  cfg.AI.Ollama.ChatModel,
+				Timeout:    cfg.AI.Timeout,
+			}
+			c.AIService = ai.NewService(aiCfg, vecStore, appLogger)
+
+			// Initialize async indexing service
+			indexingCfg := &indexing.Config{
+				Enabled:       cfg.Indexing.Enabled,
+				Workers:       cfg.Indexing.Workers,
+				QueueSize:     cfg.Indexing.QueueSize,
+				MaxRetries:    cfg.Indexing.MaxRetries,
+				RetryDelay:    cfg.Indexing.RetryDelay,
+				CleanupAfter:  cfg.Indexing.CleanupAfter,
+				StatusEnabled: cfg.Indexing.StatusEnabled,
+			}
+			c.IndexingService = indexing.NewService(indexingCfg, c.AIService, appLogger)
+
+			// Initialize RAG service
+			ragConfig := &rag.Config{
+				DefaultTopK:        5,
+				DefaultMaxTokens:   4000,
+				DefaultTemperature: 0.7,
+				ContextWindowSize:  8000,
+				MinRelevanceScore:  0.1,
+				SystemPrompt:       "You are a helpful AI assistant. Use the provided context to answer questions accurately. If the context doesn't contain relevant information, say so clearly.",
+			}
+			c.RAGService = rag.NewService(c.AIService, vecStore, appLogger, ragConfig)
 		}
 	}
 
