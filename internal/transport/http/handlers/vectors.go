@@ -27,6 +27,7 @@ const (
 	DIMENSION_MISMATCH_ERROR = "dimension_mismatch"
 	INVALID_FORMAT_ERROR     = "invalid_format"
 	NOT_FOUND_ERROR          = "not_found"
+	STORAGE_ERROR            = "storage_error"
 )
 
 // VectorHandler handles vector-related HTTP requests
@@ -62,9 +63,11 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	status := STATUS_SUCCESS
 	errType := NO_ERROR
 	start := time.Now()
+	dimension := 0
 
 	defer func() {
 		trackOperation(start, INSERT_OPERATION, status, errType)
+		trackStorage(dimension)
 	}()
 
 	if h == nil || h.storage == nil {
@@ -117,11 +120,10 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Store the vector
 	if err := h.storage.Store(vector); err != nil {
 		status = STATUS_ERROR
-    
 		// Check for dimension mismatch errors (client errors)
 		var dimErr *vectors.DimensionMismatchError
 		if errors.As(err, &dimErr) {
-      errType = DIMENSION_MISMATCH_ERROR
+			errType = DIMENSION_MISMATCH_ERROR
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Dimension mismatch",
 				"details": dimErr.Error(),
@@ -137,10 +139,12 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		return
 	}
 
+	dimension = len(req.Embedding)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Vector stored successfully",
 		"id":         req.ID,
-		"dimensions": len(req.Embedding),
+		"dimensions": dimension,
 	})
 
 }
@@ -151,12 +155,11 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	status := STATUS_SUCCESS
 	errType := NO_ERROR
 	start := time.Now()
-	count, dimension := 0, 0
+	total := 0
 
 	defer func() {
 		trackOperation(start, SEARCH_OPERATION, status, errType)
-		trackSearchPerformance(start, count)
-		trackStorage(dimension, count)
+		trackSearchPerformance(start, total)
 	}()
 
 	var req SearchEmbeddingsRequest
@@ -198,13 +201,11 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 		return
 	}
 
-	dimension, count = len(results), len(req.Query)
-
 	c.JSON(http.StatusOK, gin.H{
 		"results":          results,
-		"query_dimensions": dimension,
+		"query_dimensions": len(req.Query),
 		"top_k":            req.TopK,
-		"count":            count,
+		"count":            len(results),
 	})
 }
 

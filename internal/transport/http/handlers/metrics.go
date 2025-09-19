@@ -89,10 +89,10 @@ var (
 		},
 	)
 
-	vectorAverageDimensions = promauto.NewGauge(
+	vectorDimensionsTotal = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "vector_average_dimensions",
-			Help: "Average dimensions per vector",
+			Name: "vector_dimensions_total",
+			Help: "Sum of dimensions of all stored vectors.",
 		},
 	)
 
@@ -151,15 +151,12 @@ func trackOperation(start time.Time, operation, status, errorType string) {
 }
 
 // Tracking storage
-func trackStorage(dimension, count int) {
+func trackStorage(dimension int) {
 	dimensionStr := strconv.Itoa(dimension)
 
 	vectorEmbeddingsTotal.WithLabelValues(dimensionStr).Inc()
-	vectorStorageBytesTotal.Add(float64(count))
-
-	if count > 0 {
-		vectorAverageDimensions.Add(float64(dimension) / float64(count))
-	}
+	vectorStorageBytesTotal.Add(float64(dimension * 8))
+	vectorDimensionsTotal.Add(float64(dimension))
 }
 
 // Tracking the vector search operation performance
