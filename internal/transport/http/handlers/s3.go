@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -120,6 +122,11 @@ func (h *S3Handler) CreateBucket(c *gin.Context) {
 				metadata[key[11:]] = values[0]
 			}
 		}
+	}
+
+	// Set default indexing configuration if not specified
+	if _, exists := metadata["indexing-enabled"]; !exists {
+		metadata["indexing-enabled"] = "true" // Enable indexing by default
 	}
 
 	_, err := h.container.StorageService.CreateBucket(ctx, bucketName, metadata)
@@ -244,6 +251,56 @@ func (h *S3Handler) PutObject(c *gin.Context) {
 		return
 	}
 
+	// Process content for vector embeddings if AI service is available and content is text
+	if h.container.AIService != nil && h.container.AIService.IsTextContent(contentType) {
+		// Check if indexing is enabled for this bucket
+		bucket, err := h.container.StorageService.GetBucket(ctx, bucketName)
+		if err != nil {
+			h.container.Logger.Warn("Failed to get bucket for indexing check", "bucket", bucketName, "error", err)
+		} else {
+			indexingEnabled := bucket.Metadata["indexing-enabled"]
+			if indexingEnabled == "true" || indexingEnabled == "" { // Default to true if not set
+				text := string(data)
+				if text != "" {
+					objectID := fmt.Sprintf("%s/%s", bucketName, objectKey)
+
+					// Add S3 metadata to AI metadata
+					aiMetadata := make(map[string]interface{})
+					aiMetadata["bucket"] = bucketName
+					aiMetadata["key"] = objectKey
+					aiMetadata["content_type"] = contentType
+					aiMetadata["size"] = len(data)
+					for k, v := range metadata {
+						aiMetadata["s3_"+k] = v
+					}
+
+					// Submit for async indexing instead of direct processing
+					if h.container.IndexingService != nil {
+						go func() {
+							job, err := h.container.IndexingService.SubmitJob(context.Background(), objectID, text, aiMetadata)
+							if err != nil {
+								h.container.Logger.Warn("Failed to submit document for indexing", "bucket", bucketName, "key", objectKey, "error", err)
+							} else {
+								h.container.Logger.Info("Document submitted for async indexing", "bucket", bucketName, "key", objectKey, "job_id", job.ID)
+							}
+						}()
+					} else {
+						// Fallback to direct AI processing if indexing service is not available
+						go func() {
+							if err := h.container.AIService.ProcessAndStoreDocument(context.Background(), objectID, text, aiMetadata); err != nil {
+								h.container.Logger.Warn("Failed to process document for AI", "bucket", bucketName, "key", objectKey, "error", err)
+							} else {
+								h.container.Logger.Info("Document processed for AI", "bucket", bucketName, "key", objectKey)
+							}
+						}()
+					}
+				}
+			} else {
+				h.container.Logger.Debug("Skipping AI processing - indexing disabled for bucket", "bucket", bucketName)
+			}
+		}
+	}
+
 	s3OperationsTotal.WithLabelValues("PutObject", bucketName, "success").Inc()
 
 	c.Header("ETag", object.ETag)
@@ -316,8 +373,106 @@ func (h *S3Handler) DeleteObject(c *gin.Context) {
 		return
 	}
 
+	// Remove vector embeddings if AI service is available
+	if h.container.AIService != nil {
+		objectID := fmt.Sprintf("%s/%s", bucketName, objectKey)
+		go func() {
+			if deleteErr := h.deleteObjectVectors(objectID); deleteErr != nil {
+				h.container.Logger.Warn("Failed to delete vectors for object", "object_id", objectID, "error", deleteErr)
+			} else {
+				h.container.Logger.Info("Vectors deleted for object", "object_id", objectID)
+			}
+		}()
+	}
+
 	s3OperationsTotal.WithLabelValues("DeleteObject", bucketName, "success").Inc()
 	c.Status(http.StatusNoContent)
+}
+
+// DeleteObjects handles S3 delete multiple objects request (POST /{bucket}?delete)
+func (h *S3Handler) DeleteObjects(c *gin.Context) {
+	ctx := c.Request.Context()
+	bucketName := c.Param("bucket")
+
+	// Check if this is a delete objects request
+	_, hasDelete := c.GetQuery("delete")
+	if !hasDelete {
+		// Not a delete objects request, handle as other bucket POST operations
+		c.JSON(http.StatusNotImplemented, gin.H{
+			"error": "Only delete objects operation is supported for bucket POST",
+		})
+		return
+	}
+
+	// Parse the XML request body
+	type DeleteRequest struct {
+		Objects []struct {
+			Key string `xml:"Key"`
+		} `xml:"Object"`
+		Quiet bool `xml:"Quiet"`
+	}
+
+	var deleteReq DeleteRequest
+	if err := c.ShouldBindXML(&deleteReq); err != nil {
+		c.XML(http.StatusBadRequest, gin.H{
+			"error": "Invalid delete request XML",
+		})
+		return
+	}
+
+	type DeleteResult struct {
+		Key     string `xml:"Key,omitempty"`
+		Code    string `xml:"Code,omitempty"`
+		Message string `xml:"Message,omitempty"`
+	}
+
+	type DeleteResponse struct {
+		XMLName xml.Name       `xml:"DeleteResult"`
+		Deleted []DeleteResult `xml:"Deleted,omitempty"`
+		Errors  []DeleteResult `xml:"Error,omitempty"`
+	}
+
+	response := DeleteResponse{}
+
+	// Delete each object
+	for _, obj := range deleteReq.Objects {
+		objectKey := obj.Key
+		err := h.container.StorageService.DeleteObject(ctx, bucketName, objectKey)
+
+		if err != nil {
+			s3OperationsTotal.WithLabelValues("DeleteObjects", bucketName, "error").Inc()
+
+			if !deleteReq.Quiet {
+				response.Errors = append(response.Errors, DeleteResult{
+					Key:     objectKey,
+					Code:    "InternalError",
+					Message: err.Error(),
+				})
+			}
+		} else {
+			s3OperationsTotal.WithLabelValues("DeleteObjects", bucketName, "success").Inc()
+
+			// Remove vector embeddings if AI service is available
+			if h.container.AIService != nil {
+				objectID := fmt.Sprintf("%s/%s", bucketName, objectKey)
+				go func(id string) {
+					if deleteErr := h.deleteObjectVectors(id); deleteErr != nil {
+						h.container.Logger.Warn("Failed to delete vectors for object", "object_id", id, "error", deleteErr)
+					} else {
+						h.container.Logger.Info("Vectors deleted for object", "object_id", id)
+					}
+				}(objectID)
+			}
+
+			if !deleteReq.Quiet {
+				response.Deleted = append(response.Deleted, DeleteResult{
+					Key: objectKey,
+				})
+			}
+		}
+	}
+
+	c.XML(http.StatusOK, response)
 }
 
 // handleS3Error converts domain errors to S3-compatible XML error responses
@@ -342,4 +497,14 @@ func (h *S3Handler) handleS3Error(c *gin.Context, err error, resource string) {
 	}
 
 	c.XML(appErr.HTTPStatus, errorResponse)
+}
+
+// deleteObjectVectors removes vector embeddings for a deleted object
+func (h *S3Handler) deleteObjectVectors(objectID string) error {
+	if h.container.AIService == nil {
+		return fmt.Errorf("AI service not available")
+	}
+
+	ctx := context.TODO() // Use background context for cleanup
+	return h.container.AIService.DeleteDocument(ctx, objectID)
 }
