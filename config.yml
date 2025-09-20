@@ -1,0 +1,89 @@
+# 8fs Configuration File
+# This file contains all configuration options for the 8fs vector-enabled S3 storage system
+# Environment variables will override these settings if provided
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  mode: "release"  # Options: release, debug, test
+
+# Storage Configuration
+storage:
+  driver: "filesystem"  # Options: filesystem, s3, memory
+  base_path: "./data"   # Used for filesystem driver
+  s3:
+    endpoint: ""
+    access_key: ""
+    secret_key: ""
+    region: "us-east-1"
+    bucket: "8fs-storage"
+    use_ssl: true
+    force_path_style: false
+
+# Authentication Configuration
+auth:
+  enabled: false  # Will be auto-determined based on credentials if not set via env
+  driver: "signature"  # Options: signature, jwt, none
+  jwt_secret: "change-me-in-production"
+  token_ttl: 24h
+  default_key:
+    access_key: "AKIAIOSFODNN7EXAMPLE"
+    secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  path: "/metrics"
+  update_interval: 15s
+  enable_go_metrics: true
+  enable_process_metrics: true
+
+# Audit Configuration
+audit:
+  enabled: true
+  driver: "stdout"  # Options: stdout, file, database
+  file_path: "./logs/audit.log"
+  max_size: 100     # MB
+  max_backups: 3
+  max_age: 30       # days
+  compress: true
+
+# Logger Configuration
+logger:
+  level: "info"     # Options: debug, info, warn, error
+  format: "json"    # Options: json, text
+  output: "stdout"  # Options: stdout, file
+  file_path: "./logs/app.log"
+  max_size: 100     # MB
+  max_backups: 3
+  max_age: 30       # days
+  compress: true
+
+# Vector Storage Configuration
+vector:
+  enabled: true
+  db_path: "data/vectors.db"
+  dimension: 384    # Must match AI model embedding dimensions
+
+# AI/Ollama Integration Configuration
+ai:
+  enabled: true
+  base_url: "http://localhost:11434"
+  model: "all-minilm:latest"  # Embedding model (384 dimensions)
+  timeout: 30s
+  chunk_size: 500   # Words per chunk for long documents
+  max_retries: 3    # Retry attempts for API calls
+
+# Async Document Indexing Configuration
+indexing:
+  enabled: true     # Enable async background indexing
+  workers: 3        # Number of background worker threads
+  queue_size: 1000  # Maximum number of queued indexing jobs
+  max_retries: 3    # Maximum retry attempts per job
+  retry_delay: 5s   # Delay between retry attempts
+  cleanup_after: 24h # How long to keep completed job records
+  status_enabled: true # Enable job status tracking API

@@ -40,9 +40,30 @@ func SetupRoutes(r *gin.Engine, c *container.Container) {
 			vectorHandler := handlers.NewVectorHandler(c, c.VectorStorage)
 			vectorGroup.POST("/embeddings", vectorHandler.StoreEmbedding)
 			vectorGroup.POST("/search", vectorHandler.SearchEmbeddings)
+			vectorGroup.POST("/search/text", vectorHandler.SearchText) // Text-based semantic search
 			vectorGroup.GET("/embeddings/:id", vectorHandler.GetEmbedding)
 			vectorGroup.GET("/embeddings", vectorHandler.ListEmbeddings)
 			vectorGroup.DELETE("/embeddings/:id", vectorHandler.DeleteEmbedding)
+		}
+
+		// Async indexing endpoints
+		if c.Config.Indexing.Enabled && c.Config.Indexing.StatusEnabled && c.IndexingService != nil {
+			indexingGroup := v1.Group("/indexing")
+			indexingHandler := handlers.NewIndexingHandler(c)
+			indexingGroup.GET("/jobs/:jobId", indexingHandler.GetJobStatus)
+			indexingGroup.GET("/jobs", indexingHandler.GetJobsByObject)
+			indexingGroup.GET("/stats", indexingHandler.GetIndexingStats)
+			indexingGroup.GET("/health", indexingHandler.HealthCheck)
+		}
+
+		// RAG endpoints
+		if c.RAGService != nil {
+			chatGroup := v1.Group("/chat")
+			ragHandler := handlers.NewRAGHandler(c, c.RAGService)
+			chatGroup.POST("/completions", ragHandler.ChatCompletions)          // OpenAI compatible
+			chatGroup.POST("/search/context", ragHandler.SearchContext)         // Context retrieval
+			chatGroup.POST("/generate/context", ragHandler.GenerateWithContext) // Direct generation with context
+			chatGroup.GET("/health", ragHandler.GetHealth)                      // RAG health check
 		}
 	}
 
@@ -66,6 +87,7 @@ func setupS3Routes(r gin.IRoutes, c *container.Container) {
 	r.PUT("/:bucket", s3Handler.CreateBucket)
 	r.DELETE("/:bucket", s3Handler.DeleteBucket)
 	r.GET("/:bucket", s3Handler.ListObjects)
+	r.POST("/:bucket", s3Handler.DeleteObjects) // S3 delete objects API
 
 	// Object operations
 	r.PUT("/:bucket/*key", s3Handler.PutObject)

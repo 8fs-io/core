@@ -23,6 +23,9 @@ services:
       # Storage configuration
       - STORAGE_DRIVER=filesystem
       - STORAGE_BASE_PATH=/app/data
+      # AI Integration (Ollama)
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=all-minilm:latest
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
@@ -34,9 +37,37 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 128M
+          memory: 256M
+    networks:
+      - s3-network
+    depends_on:
+      - ollama
+
+  # Ollama AI Service for text embedding generation
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Pull the embedding model on startup
+    command: >
+      sh -c "ollama serve & 
+             sleep 10 && 
+             ollama pull all-minilm:latest && 
+             wait"
     networks:
       - s3-network
 
@@ -60,3 +91,6 @@ services:
 networks:
   s3-network:
     driver: bridge
+
+volumes:
+  ollama_data:
