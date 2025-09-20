@@ -277,7 +277,9 @@ func (h *S3Handler) PutObject(c *gin.Context) {
 					// Submit for async indexing instead of direct processing
 					if h.container.IndexingService != nil {
 						go func() {
-							job, err := h.container.IndexingService.SubmitJob(context.Background(), objectID, text, aiMetadata)
+							ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+							defer cancel()
+							job, err := h.container.IndexingService.SubmitJob(ctx, objectID, text, aiMetadata)
 							if err != nil {
 								h.container.Logger.Warn("Failed to submit document for indexing", "bucket", bucketName, "key", objectKey, "error", err)
 							} else {
@@ -287,7 +289,9 @@ func (h *S3Handler) PutObject(c *gin.Context) {
 					} else {
 						// Fallback to direct AI processing if indexing service is not available
 						go func() {
-							if err := h.container.AIService.ProcessAndStoreDocument(context.Background(), objectID, text, aiMetadata); err != nil {
+							ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+							defer cancel()
+							if err := h.container.AIService.ProcessAndStoreDocument(ctx, objectID, text, aiMetadata); err != nil {
 								h.container.Logger.Warn("Failed to process document for AI", "bucket", bucketName, "key", objectKey, "error", err)
 							} else {
 								h.container.Logger.Info("Document processed for AI", "bucket", bucketName, "key", objectKey)
@@ -505,6 +509,7 @@ func (h *S3Handler) deleteObjectVectors(objectID string) error {
 		return fmt.Errorf("AI service not available")
 	}
 
-	ctx := context.TODO() // Use background context for cleanup
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	return h.container.AIService.DeleteDocument(ctx, objectID)
 }

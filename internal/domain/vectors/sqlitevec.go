@@ -229,15 +229,7 @@ func (s *SQLiteVecStorage) vectorSearch(query []float64, topK int) ([]SearchResu
 		// Convert distance to similarity score
 		// For cosine distance, values range from 0 (identical) to 2 (opposite)
 		// We convert to similarity scale 0-1 where 1 is most similar
-		var similarity float64
-		if distance >= 2.0 {
-			similarity = 0.0 // Completely opposite vectors
-		} else if distance <= 0.0 {
-			similarity = 1.0 // Identical vectors
-		} else {
-			// Linear mapping from distance [0,2] to similarity [1,0]
-			similarity = 1.0 - (distance / 2.0)
-		}
+		similarity := distanceToSimilarity(distance)
 
 		vector := &Vector{
 			ID:        id,
@@ -301,4 +293,18 @@ func serializeEmbeddingBinary(embedding []float64) ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize embedding to binary: %w", err)
 	}
 	return data, nil
+}
+
+// distanceToSimilarity converts cosine distance to similarity score
+// Cosine distance ranges from 0 (identical) to 2 (opposite)
+// Similarity score ranges from 1 (most similar) to 0 (least similar)
+func distanceToSimilarity(distance float64) float64 {
+	if distance >= 2.0 {
+		return 0.0 // Completely opposite vectors
+	} else if distance <= 0.0 {
+		return 1.0 // Identical vectors
+	} else {
+		// Linear mapping from distance [0,2] to similarity [1,0]
+		return 1.0 - (distance / 2.0)
+	}
 }

@@ -402,7 +402,10 @@ func (demo *LlamaDemo) storeVector(vector *vectors.Vector) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return fmt.Errorf("server error %d (and failed to read response body: %v)", resp.StatusCode, readErr)
+		}
 		return fmt.Errorf("server error %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -430,7 +433,10 @@ func (demo *LlamaDemo) searchSimilarVectors(query []float64, topK int) ([]vector
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("server error %d (and failed to read response body: %v)", resp.StatusCode, readErr)
+		}
 		return nil, fmt.Errorf("server error %d: %s", resp.StatusCode, string(body))
 	}
 

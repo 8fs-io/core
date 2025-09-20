@@ -76,7 +76,7 @@ store_documents() {
         -H "Content-Type: application/json" \
         -d "{
             \"id\": \"doc_8fs_rag\",
-            \"embedding\": $zero_embedding,
+            \"embedding\": $test_embedding,
             \"metadata\": {
                 \"content\": \"8fs RAG includes OpenAI-compatible /api/v1/chat/completions endpoint for chat completions, context search capabilities, and generation with retrieval-augmented responses. It supports multiple AI providers including Ollama, OpenAI, and AWS Bedrock.\",
                 \"source\": \"rag.md\",

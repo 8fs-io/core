@@ -373,14 +373,14 @@ validate_config() {
                 has_access_key=false
                 has_secret_key=false
                 
-                if grep -q "AWS_BEDROCK_ACCESS_KEY_ID=" .env && ! grep -q "AWS_BEDROCK_ACCESS_KEY_ID=your-aws-access-key-id" .env; then
+                if grep -q "AWS_BEDROCK_ACCESS_KEY_ID=.\+" .env; then
                     has_access_key=true
                     print_ai "✓ AWS Access Key configured"
                 else
                     print_error "✗ Please set your AWS Access Key in .env"
                 fi
                 
-                if grep -q "AWS_BEDROCK_SECRET_ACCESS_KEY=" .env && ! grep -q "AWS_BEDROCK_SECRET_ACCESS_KEY=your-aws-secret-access-key" .env; then
+                if grep -q "AWS_BEDROCK_SECRET_ACCESS_KEY=.\+" .env; then
                     has_secret_key=true  
                     print_ai "✓ AWS Secret Key configured"
                 else

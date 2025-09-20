@@ -213,7 +213,7 @@ func storeDocument(serverURL, docID, text string, embedding []float64) error {
         "embedding": embedding,
         "metadata": map[string]interface{}{
             "text": text,
-            "created_at": time.Now(),
+            "created_at": time.Now().Format(time.RFC3339),
         },
     }
     
