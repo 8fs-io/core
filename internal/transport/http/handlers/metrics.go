@@ -85,7 +85,7 @@ var (
 	vectorStorageBytesTotal = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "vector_storage_bytes_total",
-			Help: "Total storage used in bytes per vector",
+			Help: "Total storage used in bytes for all vectors",
 		},
 	)
 

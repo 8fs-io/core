@@ -132,6 +132,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		}
 
 		// Other errors are internal server errors
+		errType = STORAGE_ERROR
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to store vector",
 			"details": err.Error(),
@@ -200,6 +201,9 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 		})
 		return
 	}
+
+	// Update total for metrics tracking
+	total = len(results)
 
 	c.JSON(http.StatusOK, gin.H{
 		"results":          results,
