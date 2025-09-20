@@ -287,7 +287,7 @@ func loadFromEnv() *Config {
 			},
 			Ollama: OllamaConfig{
 				EmbedModel:  getEnvOrDefault("OLLAMA_EMBED_MODEL", "all-minilm:latest"),
-				ChatModel:   getEnvOrDefault("OLLAMA_CHAT_MODEL", "llama2"),
+				ChatModel:   getEnvOrDefault("OLLAMA_CHAT_MODEL", "llama3.2:1b"),
 				MaxTokens:   getEnvOrDefaultInt("OLLAMA_MAX_TOKENS", 4000),
 				Temperature: getEnvOrDefaultFloat("OLLAMA_TEMPERATURE", 0.7),
 			},
