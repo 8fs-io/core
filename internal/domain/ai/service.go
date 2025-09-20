@@ -379,7 +379,7 @@ func (s *service) GenerateText(ctx context.Context, req TextGenerationRequest) (
 		ID:      fmt.Sprintf("chatcmpl-%d", time.Now().UnixNano()),
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   "llama3.2:1b",
+		Model:   s.config.ChatModel,
 		Choices: []Choice{
 			{
 				Index: 0,
