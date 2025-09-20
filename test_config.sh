@@ -60,7 +60,6 @@ if echo "$STORE_RESULT" | jq -e '.message | contains("successfully")' > /dev/nul
 else
     echo -e "${RED}❌ Vector storage failed: $(echo $STORE_RESULT | jq -r '.error // .details // "unknown error"')${NC}"
     ((TESTS_FAILED++))
-    ((TESTS_FAILED++))
 fi
 
 echo -e "\n${BLUE}Step 4: Vector Search Test${NC}"

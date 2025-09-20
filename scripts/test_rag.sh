@@ -93,65 +93,6 @@ store_documents() {
             }
         }" > /dev/null && echo "✅ Stored: API Usage" || echo "❌ Failed to store: API Usage"
 
-    # Document 3: RAG Features
-    curl -sf -X POST "$API_V1/vectors/embeddings" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "id": "doc_8fs_rag",
-            "embedding": [],
-            "metadata": {
-                "content": "8fs RAG includes OpenAI-compatible /api/v1/chat/completions endpoint for chat completions, context search capabilities, and generation with retrieval-augmented responses. It supports multiple AI providers including Ollama, OpenAI, and AWS Bedrock.",
-                "source": "rag.md",
-                "type": "documentation",
-                "category": "rag"
-            }
-        }' > /dev/null && echo "✅ Stored: RAG Features" || echo "❌ Failed to store: RAG Features"
-
-    # Document 4: API Usage
-    curl -sf -X POST "$API_V1/vectors/embeddings" \
-
-    # Document 2: Performance Stats
-    curl -s -X POST "$API_V1/vectors/embeddings" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "id": "doc_8fs_performance",
-            "embedding": [],
-            "metadata": {
-                "content": "8fs delivers high performance with 1,700+ vectors per second insert rate and 1.8-8.9 queries per second search performance. It uses SQLite-vec for optimized vector operations with cosine similarity search and supports 3-1,536 dimensions.",
-                "source": "performance.md",
-                "type": "documentation",
-                "category": "performance"
-            }
-        }' > /dev/null && echo "✅ Stored: Performance Stats"
-
-    # Document 3: RAG Features
-    curl -s -X POST "$API_V1/vectors/embeddings" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "id": "doc_8fs_rag",
-            "embedding": [],
-            "metadata": {
-                "content": "8fs RAG includes OpenAI-compatible /api/v1/chat/completions endpoint for chat completions, context search capabilities, and generation with retrieval-augmented responses. It supports multiple AI providers including Ollama, OpenAI, and AWS Bedrock.",
-                "source": "rag.md",
-                "type": "documentation",
-                "category": "rag"
-            }
-        }' > /dev/null && echo "✅ Stored: RAG Features"
-
-    # Document 4: API Usage
-    curl -sf -X POST "$API_V1/vectors/embeddings" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "id": "doc_8fs_api",
-            "embedding": [],
-            "metadata": {
-                "content": "8fs provides S3-compatible APIs for bucket and object operations, vector storage endpoints for embeddings and search, and RAG endpoints for chat completions and context retrieval. All APIs support standard HTTP methods and JSON payloads.",
-                "source": "api.md",
-                "type": "documentation",
-                "category": "api"
-            }
-        }' > /dev/null && echo "✅ Stored: API Usage" || echo "❌ Failed to store: API Usage"
-
     echo "📄 Stored 4 sample documents"
 }
 

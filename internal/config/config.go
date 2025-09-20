@@ -20,6 +20,7 @@ type Config struct {
 	Vector   VectorConfig   `yaml:"vector"`
 	AI       AIConfig       `yaml:"ai"`
 	Indexing IndexingConfig `yaml:"indexing"`
+	RAG      RAGConfig      `yaml:"rag"`
 }
 
 type ServerConfig struct {
@@ -148,6 +149,15 @@ type IndexingConfig struct {
 	RetryDelay    time.Duration `yaml:"retry_delay"`
 	CleanupAfter  time.Duration `yaml:"cleanup_after"`
 	StatusEnabled bool          `yaml:"status_enabled"`
+}
+
+type RAGConfig struct {
+	DefaultTopK        int     `yaml:"default_top_k"`       // Default number of documents to retrieve
+	DefaultMaxTokens   int     `yaml:"default_max_tokens"`  // Default max tokens for generation
+	DefaultTemperature float64 `yaml:"default_temperature"` // Default generation temperature
+	ContextWindowSize  int     `yaml:"context_window_size"` // Max context window size
+	MinRelevanceScore  float64 `yaml:"min_relevance_score"` // Minimum relevance score for documents
+	SystemPrompt       string  `yaml:"system_prompt"`       // Default system prompt
 }
 
 // Load reads configuration from YAML file first, then environment variables with defaults
@@ -300,6 +310,14 @@ func loadFromEnv() *Config {
 			RetryDelay:    getEnvOrDefaultDuration("INDEXING_RETRY_DELAY", 5*time.Second),
 			CleanupAfter:  getEnvOrDefaultDuration("INDEXING_CLEANUP_AFTER", 24*time.Hour),
 			StatusEnabled: getEnvOrDefaultBool("INDEXING_STATUS_ENABLED", true),
+		},
+		RAG: RAGConfig{
+			DefaultTopK:        getEnvOrDefaultInt("RAG_DEFAULT_TOP_K", 5),
+			DefaultMaxTokens:   getEnvOrDefaultInt("RAG_DEFAULT_MAX_TOKENS", 4000),
+			DefaultTemperature: getEnvOrDefaultFloat("RAG_DEFAULT_TEMPERATURE", 0.7),
+			ContextWindowSize:  getEnvOrDefaultInt("RAG_CONTEXT_WINDOW_SIZE", 8000),
+			MinRelevanceScore:  getEnvOrDefaultFloat("RAG_MIN_RELEVANCE_SCORE", 0.1),
+			SystemPrompt:       getEnvOrDefault("RAG_SYSTEM_PROMPT", "You are a helpful AI assistant. Use the provided context to answer questions accurately. If the context doesn't contain relevant information, say so clearly."),
 		},
 	}
 }
@@ -539,6 +557,36 @@ func mergeWithEnv(cfg *Config) {
 		if enabled, err := strconv.ParseBool(statusEnabled); err == nil {
 			cfg.Indexing.StatusEnabled = enabled
 		}
+	}
+
+	// RAG config
+	if topK := os.Getenv("RAG_DEFAULT_TOP_K"); topK != "" {
+		if topKInt, err := strconv.Atoi(topK); err == nil {
+			cfg.RAG.DefaultTopK = topKInt
+		}
+	}
+	if maxTokens := os.Getenv("RAG_DEFAULT_MAX_TOKENS"); maxTokens != "" {
+		if maxTokensInt, err := strconv.Atoi(maxTokens); err == nil {
+			cfg.RAG.DefaultMaxTokens = maxTokensInt
+		}
+	}
+	if temperature := os.Getenv("RAG_DEFAULT_TEMPERATURE"); temperature != "" {
+		if tempFloat, err := strconv.ParseFloat(temperature, 64); err == nil {
+			cfg.RAG.DefaultTemperature = tempFloat
+		}
+	}
+	if contextWindowSize := os.Getenv("RAG_CONTEXT_WINDOW_SIZE"); contextWindowSize != "" {
+		if contextSizeInt, err := strconv.Atoi(contextWindowSize); err == nil {
+			cfg.RAG.ContextWindowSize = contextSizeInt
+		}
+	}
+	if minRelevance := os.Getenv("RAG_MIN_RELEVANCE_SCORE"); minRelevance != "" {
+		if relevanceFloat, err := strconv.ParseFloat(minRelevance, 64); err == nil {
+			cfg.RAG.MinRelevanceScore = relevanceFloat
+		}
+	}
+	if systemPrompt := os.Getenv("RAG_SYSTEM_PROMPT"); systemPrompt != "" {
+		cfg.RAG.SystemPrompt = systemPrompt
 	}
 }
 

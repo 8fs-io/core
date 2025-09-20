@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/8fs-io/core/internal/config"
 	"github.com/8fs-io/core/internal/domain/ai"
@@ -91,13 +92,12 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 			c.VectorStorage = vecStore
 
 			// Initialize AI service if vector storage is available
-			aiCfg := &ai.OllamaConfig{
-				BaseURL:    cfg.AI.BaseURL,
-				EmbedModel: cfg.AI.Ollama.EmbedModel,
-				ChatModel:  cfg.AI.Ollama.ChatModel,
-				Timeout:    cfg.AI.Timeout,
+			aiService, err := initAIService(cfg, vecStore, appLogger)
+			if err != nil {
+				appLogger.Error("AI service initialization failed", "error", err)
+			} else {
+				c.AIService = aiService
 			}
-			c.AIService = ai.NewService(aiCfg, vecStore, appLogger)
 
 			// Initialize async indexing service
 			indexingCfg := &indexing.Config{
@@ -113,16 +113,65 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 
 			// Initialize RAG service
 			ragConfig := &rag.Config{
-				DefaultTopK:        5,
-				DefaultMaxTokens:   4000,
-				DefaultTemperature: 0.7,
-				ContextWindowSize:  8000,
-				MinRelevanceScore:  0.1,
-				SystemPrompt:       "You are a helpful AI assistant. Use the provided context to answer questions accurately. If the context doesn't contain relevant information, say so clearly.",
+				DefaultTopK:        cfg.RAG.DefaultTopK,
+				DefaultMaxTokens:   cfg.RAG.DefaultMaxTokens,
+				DefaultTemperature: cfg.RAG.DefaultTemperature,
+				ContextWindowSize:  cfg.RAG.ContextWindowSize,
+				MinRelevanceScore:  cfg.RAG.MinRelevanceScore,
+				SystemPrompt:       cfg.RAG.SystemPrompt,
 			}
 			c.RAGService = rag.NewService(c.AIService, vecStore, appLogger, ragConfig)
 		}
 	}
 
 	return c, nil
+}
+
+// initAIService creates an AI service based on the configured provider
+func initAIService(cfg *config.Config, vectorStorage *vectors.SQLiteVecStorage, logger logger.Logger) (ai.Service, error) {
+	if !cfg.AI.Enabled {
+		logger.Info("AI service disabled in configuration")
+		return nil, nil
+	}
+
+	switch strings.ToLower(cfg.AI.Provider) {
+	case "ollama":
+		return initOllamaService(cfg, vectorStorage, logger)
+	case "openai":
+		return initOpenAIService(cfg, vectorStorage, logger)
+	case "bedrock":
+		return initBedrockService(cfg, vectorStorage, logger)
+	default:
+		return nil, fmt.Errorf("unsupported AI provider: %s", cfg.AI.Provider)
+	}
+}
+
+// initOllamaService creates an Ollama AI service
+func initOllamaService(cfg *config.Config, vectorStorage *vectors.SQLiteVecStorage, logger logger.Logger) (ai.Service, error) {
+	ollamaCfg := &ai.OllamaConfig{
+		BaseURL:    cfg.AI.BaseURL,
+		EmbedModel: cfg.AI.Ollama.EmbedModel,
+		ChatModel:  cfg.AI.Ollama.ChatModel,
+		Timeout:    cfg.AI.Timeout,
+	}
+
+	service := ai.NewService(ollamaCfg, vectorStorage, logger)
+	logger.Info("initialized Ollama AI service", "base_url", cfg.AI.BaseURL, "embed_model", cfg.AI.Ollama.EmbedModel, "chat_model", cfg.AI.Ollama.ChatModel)
+	return service, nil
+}
+
+// initOpenAIService creates an OpenAI AI service (placeholder - needs implementation)
+func initOpenAIService(cfg *config.Config, vectorStorage *vectors.SQLiteVecStorage, logger logger.Logger) (ai.Service, error) {
+	logger.Warn("OpenAI AI service not yet implemented, falling back to Ollama")
+	// TODO: Implement OpenAI service
+	// For now, fall back to Ollama with a warning
+	return initOllamaService(cfg, vectorStorage, logger)
+}
+
+// initBedrockService creates an AWS Bedrock AI service (placeholder - needs implementation)
+func initBedrockService(cfg *config.Config, vectorStorage *vectors.SQLiteVecStorage, logger logger.Logger) (ai.Service, error) {
+	logger.Warn("AWS Bedrock AI service not yet implemented, falling back to Ollama")
+	// TODO: Implement Bedrock service
+	// For now, fall back to Ollama with a warning
+	return initOllamaService(cfg, vectorStorage, logger)
 }

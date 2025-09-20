@@ -1,0 +1,1 @@
+This is a test document that should be searchable after async indexing completes.
