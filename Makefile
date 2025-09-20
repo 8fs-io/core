@@ -1,6 +1,6 @@
 # Makefile for 8fs S3-compatible storage server
 
-.PHONY: build clean test run docker help cross-platform install dev benchmark
+.PHONY: build clean test run docker help cross-platform install dev benchmark llama-demo-build llama-demo-help
 
 # Variables
 BINARY_NAME := 8fs
@@ -40,6 +40,10 @@ help:
 	@echo "  generate-sample     Generate sample data (1000 realistic vectors)"
 	@echo "  generate-clustered  Generate clustered dataset (1000 vectors)"
 	@echo "  generate-random     Generate random dataset (1000 vectors)"
+	@echo ""
+	@echo "AI Integration:"
+	@echo "  llama-demo-build    Build Llama integration demo tool"
+	@echo "  llama-demo-help     Show Llama demo usage examples"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker           Build Docker image"
@@ -194,6 +198,11 @@ generate-data-build:
 	@echo "🔨 Building data generator tool..."
 	@go build -o $(BUILD_DIR)/generate-data ./cmd/generate-data/
 
+# Build llama demo tool
+llama-demo-build:
+	@echo "🔨 Building Llama integration demo tool..."
+	@go build -o $(BUILD_DIR)/llama-demo ./cmd/llama-demo/
+
 # Quick benchmark for development (small dataset, fast)
 benchmark-quick: benchmark-build
 	@echo "⚡ Running quick benchmark..."
@@ -279,6 +288,16 @@ benchmark-clean:
 	@rm -f ./data/benchmark_*.db ./data/benchmark_*.json
 	@rm -f ./data/sample_*.db ./data/clustered_*.db ./data/random_*.db
 	@echo "✅ Benchmark data cleaned"
+
+# =================================
+# Llama Integration Demo Targets
+# =================================
+
+# Show Llama demo help and examples
+llama-demo-help: llama-demo-build
+	@echo "🤖 Llama Integration Demo"
+	@echo "========================"
+	@$(BUILD_DIR)/llama-demo -cmd help
 
 # Show benchmark results
 benchmark-results:
