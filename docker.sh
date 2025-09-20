@@ -422,7 +422,6 @@ validate_config() {
 # Show configuration info
 show_config() {
     local provider=${1:-"all"}
-    local provider=${1:-"all"}
     
     print_info "=== 8fs Configuration Info ==="
     
