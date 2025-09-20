@@ -180,6 +180,28 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// determineAuthEnabled decides if authentication should be enabled based on credential configuration
+func determineAuthEnabled() bool {
+	// If AUTH_ENABLED is explicitly set, respect that setting
+	if authEnv := os.Getenv("AUTH_ENABLED"); authEnv != "" {
+		if boolValue, err := strconv.ParseBool(authEnv); err == nil {
+			return boolValue
+		}
+	}
+
+	// Check if custom credentials are provided
+	hasCustomAccessKey := os.Getenv("DEFAULT_ACCESS_KEY") != ""
+	hasCustomSecretKey := os.Getenv("DEFAULT_SECRET_KEY") != ""
+
+	// If no custom credentials are provided, default to no auth
+	if !hasCustomAccessKey && !hasCustomSecretKey {
+		return false
+	}
+
+	// If custom credentials are provided, enable auth by default
+	return true
+}
+
 // loadFromYAML loads configuration from YAML file
 func loadFromYAML() (*Config, error) {
 	configPath := getEnvOrDefault("CONFIG_FILE", "config.yml")
@@ -662,26 +684,4 @@ func getEnvOrDefaultFloat(key string, defaultValue float64) float64 {
 		}
 	}
 	return defaultValue
-}
-
-// determineAuthEnabled decides if authentication should be enabled based on credential configuration
-func determineAuthEnabled() bool {
-	// If AUTH_ENABLED is explicitly set, respect that setting
-	if authEnv := os.Getenv("AUTH_ENABLED"); authEnv != "" {
-		if boolValue, err := strconv.ParseBool(authEnv); err == nil {
-			return boolValue
-		}
-	}
-
-	// Check if custom credentials are provided
-	hasCustomAccessKey := os.Getenv("DEFAULT_ACCESS_KEY") != ""
-	hasCustomSecretKey := os.Getenv("DEFAULT_SECRET_KEY") != ""
-
-	// If no custom credentials are provided, default to no auth
-	if !hasCustomAccessKey && !hasCustomSecretKey {
-		return false
-	}
-
-	// If custom credentials are provided, enable auth by default
-	return true
 }
