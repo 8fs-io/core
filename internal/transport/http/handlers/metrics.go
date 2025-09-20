@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/8fs-io/core/internal/container"
@@ -72,6 +73,52 @@ var (
 		},
 		[]string{"operation"},
 	)
+
+	vectorEmbeddingsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vector_embeddings_total",
+			Help: "Total number of vector embeddings",
+		},
+		[]string{"dimension"},
+	)
+
+	vectorStorageBytesTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "vector_storage_bytes_total",
+			Help: "Total storage used in bytes for all vectors",
+		},
+	)
+
+	vectorDimensionsTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "vector_dimensions_total",
+			Help: "Sum of dimensions of all stored vectors.",
+		},
+	)
+
+	vectorSearchDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "vector_search_duration_seconds",
+			Help:    "Duration of the vector search in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	vectorSearchResultsCount = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "vector_search_results_count",
+			Help:    "Total number of vector search results",
+			Buckets: prometheus.LinearBuckets(0, 10, 10),
+		},
+	)
+
+	vectorErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "vector_errors_total",
+			Help: "Total errors",
+		},
+		[]string{"error_type"},
+	)
 )
 
 // MetricsHandler handles Prometheus metrics requests
@@ -94,9 +141,28 @@ func (h *MetricsHandler) Handle(c *gin.Context) {
 }
 
 // Tracking the vector operation
-func trackOperation(start time.Time, operation, status string) {
+func trackOperation(start time.Time, operation, status, errorType string) {
 	vectorOperationsTotal.WithLabelValues(operation, status).Inc()
 	operationDuration.WithLabelValues(operation).Observe(time.Since(start).Seconds())
+
+	if status == STATUS_ERROR {
+		vectorErrorsTotal.WithLabelValues(errorType).Inc()
+	}
+}
+
+// Tracking storage
+func trackStorage(dimension int) {
+	dimensionStr := strconv.Itoa(dimension)
+
+	vectorEmbeddingsTotal.WithLabelValues(dimensionStr).Inc()
+	vectorStorageBytesTotal.Add(float64(dimension * 8))
+	vectorDimensionsTotal.Add(float64(dimension))
+}
+
+// Tracking the vector search operation performance
+func trackSearchPerformance(start time.Time, count int) {
+	vectorSearchResultsCount.Observe(float64(count))
+	vectorSearchDuration.Observe(time.Since(start).Seconds())
 }
 
 // UpdateStorageMetrics updates storage-related metrics

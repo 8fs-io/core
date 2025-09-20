@@ -13,12 +13,21 @@ import (
 
 const (
 	// Operation constants
-	INSERT_OPERATION = "insert"
-	SEARCH_OPERATION = "search"
+	INSERT_OPERATION   = "insert"
+	SEARCH_OPERATION   = "search"
+	RETRIEVE_OPERATION = "retrieve"
+	DELETE_OPERATION   = "delete"
 
 	// Status constants
 	STATUS_ERROR   = "error"
 	STATUS_SUCCESS = "success"
+
+	// Error types
+	NO_ERROR                 = ""
+	DIMENSION_MISMATCH_ERROR = "dimension_mismatch"
+	INVALID_FORMAT_ERROR     = "invalid_format"
+	NOT_FOUND_ERROR          = "not_found"
+	STORAGE_ERROR            = "storage_error"
 )
 
 // VectorHandler handles vector-related HTTP requests
@@ -58,9 +67,13 @@ type SearchTextRequest struct {
 func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Tracking the insert operation duration
 	status := STATUS_SUCCESS
+	errType := NO_ERROR
 	start := time.Now()
+	dimension := 0
+
 	defer func() {
-		trackOperation(start, INSERT_OPERATION, status)
+		trackOperation(start, INSERT_OPERATION, status, errType)
+		trackStorage(dimension)
 	}()
 
 	if h == nil || h.storage == nil {
@@ -72,6 +85,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	var req StoreEmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		status = STATUS_ERROR
+		errType = INVALID_FORMAT_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request payload",
 			"details": err.Error(),
@@ -83,6 +97,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	vm := vectors.NewVectorMath()
 	if err := vm.ValidateDimensions(req.Embedding); err != nil {
 		status = STATUS_ERROR
+		errType = DIMENSION_MISMATCH_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid embedding dimensions",
 			"details": err.Error(),
@@ -100,6 +115,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Validate the complete vector
 	if err := vm.ValidateVector(vector); err != nil {
 		status = STATUS_ERROR
+		errType = INVALID_FORMAT_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid vector data",
 			"details": err.Error(),
@@ -110,10 +126,10 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 	// Store the vector
 	if err := h.storage.Store(vector); err != nil {
 		status = STATUS_ERROR
-
 		// Check for dimension mismatch errors (client errors)
 		var dimErr *vectors.DimensionMismatchError
 		if errors.As(err, &dimErr) {
+			errType = DIMENSION_MISMATCH_ERROR
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Dimension mismatch",
 				"details": dimErr.Error(),
@@ -122,6 +138,7 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		}
 
 		// Other errors are internal server errors
+		errType = STORAGE_ERROR
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to store vector",
 			"details": err.Error(),
@@ -129,10 +146,12 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 		return
 	}
 
+	dimension = len(req.Embedding)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Vector stored successfully",
 		"id":         req.ID,
-		"dimensions": len(req.Embedding),
+		"dimensions": dimension,
 	})
 
 }
@@ -141,14 +160,19 @@ func (h *VectorHandler) StoreEmbedding(c *gin.Context) {
 func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	// Tracking the search operation duration
 	status := STATUS_SUCCESS
+	errType := NO_ERROR
 	start := time.Now()
+	total := 0
+
 	defer func() {
-		trackOperation(start, SEARCH_OPERATION, status)
+		trackOperation(start, SEARCH_OPERATION, status, errType)
+		trackSearchPerformance(start, total)
 	}()
 
 	var req SearchEmbeddingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		status = STATUS_ERROR
+		errType = INVALID_FORMAT_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request payload",
 			"details": err.Error(),
@@ -165,6 +189,7 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 	vm := vectors.NewVectorMath()
 	if err := vm.ValidateDimensions(req.Query); err != nil {
 		status = STATUS_ERROR
+		errType = DIMENSION_MISMATCH_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid query dimensions",
 			"details": err.Error(),
@@ -182,6 +207,9 @@ func (h *VectorHandler) SearchEmbeddings(c *gin.Context) {
 		})
 		return
 	}
+
+	// Update total for metrics tracking
+	total = len(results)
 
 	c.JSON(http.StatusOK, gin.H{
 		"results":          results,
@@ -258,8 +286,19 @@ func (h *VectorHandler) SearchText(c *gin.Context) {
 
 // GetEmbedding handles GET /vectors/embeddings/:id
 func (h *VectorHandler) GetEmbedding(c *gin.Context) {
+	// Tracking the retrieve operation duration
+	status := STATUS_SUCCESS
+	errType := NO_ERROR
+	start := time.Now()
+
+	defer func() {
+		trackOperation(start, RETRIEVE_OPERATION, status, errType)
+	}()
+
 	id := c.Param("id")
 	if id == "" {
+		status = STATUS_ERROR
+		errType = INVALID_FORMAT_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Missing vector ID",
 		})
@@ -276,6 +315,15 @@ func (h *VectorHandler) GetEmbedding(c *gin.Context) {
 
 // ListEmbeddings handles GET /vectors/embeddings
 func (h *VectorHandler) ListEmbeddings(c *gin.Context) {
+	// Tracking the retrieve operation duration
+	status := STATUS_SUCCESS
+	errType := NO_ERROR
+	start := time.Now()
+
+	defer func() {
+		trackOperation(start, RETRIEVE_OPERATION, status, errType)
+	}()
+
 	// Parse query parameters
 	limit := 10
 	if l := c.Query("limit"); l != "" {
@@ -297,8 +345,19 @@ func (h *VectorHandler) ListEmbeddings(c *gin.Context) {
 
 // DeleteEmbedding handles DELETE /vectors/embeddings/:id
 func (h *VectorHandler) DeleteEmbedding(c *gin.Context) {
+	// Tracking the delete operation duration
+	status := STATUS_SUCCESS
+	errType := NO_ERROR
+	start := time.Now()
+
+	defer func() {
+		trackOperation(start, DELETE_OPERATION, status, errType)
+	}()
+
 	id := c.Param("id")
 	if id == "" {
+		status = STATUS_ERROR
+		errType = INVALID_FORMAT_ERROR
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Missing vector ID",
 		})
